@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExpiryPro — Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#2563EB;--blue-dk:#1D4ED8;--blue-lt:#DBEAFE;--blue-bg:#EEF4FF;
+  --text:#0C1226;--text2:#3A4357;--text3:#8892A8;
+  --border:#DDE0E8;--bg3:#EAECF2;--red:#DC2626;--red-bg:#FEF2F2;
+}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:#F2F4F8;
+  /* Fond personnalisé — remplacé si assets/bg.jpg existe */
+  background-image:url('assets/bg.jpg');
+  background-size:cover;background-position:center;
+  -webkit-font-smoothing:antialiased;
+}
+.overlay{position:fixed;inset:0;background:rgba(8,12,28,.45)}
+.card{
+  position:relative;z-index:1;
+  background:#fff;border-radius:16px;padding:36px 32px;
+  width:380px;max-width:94vw;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.3);
+}
+.logo-wrap{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.logo-mark{
+  width:40px;height:40px;border-radius:10px;
+  background:linear-gradient(135deg,#2563EB,#6366F1);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(37,99,235,.35);
+  overflow:hidden;
+}
+.logo-mark img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+.logo-mark svg{display:block}
+.logo-text{font-size:20px;font-weight:700;letter-spacing:-.025em;color:var(--text)}
+.logo-badge{font-size:10px;font-weight:600;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;border:1px solid var(--blue-lt);margin-top:3px}
+.tab-row{display:flex;gap:0;margin-bottom:24px;background:var(--bg3);border-radius:8px;padding:3px}
+.tab{flex:1;padding:7px;border-radius:6px;font-size:13px;font-weight:550;color:var(--text3);cursor:pointer;text-align:center;transition:all .15s;border:none;background:transparent;font-family:inherit}
+.tab.active{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:580;color:var(--text2);margin-bottom:5px}
+.form-group input{
+  width:100%;font-size:13px;padding:9px 12px;
+  border-radius:8px;border:1.5px solid var(--border);
+  background:#fff;color:var(--text);font-family:inherit;outline:none;
+  transition:all .15s;
+}
+.form-group input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.btn-primary{
+  width:100%;padding:10px;border-radius:8px;
+  background:var(--blue);color:#fff;border:none;
+  font-size:14px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:all .15s;
+  box-shadow:0 1px 4px rgba(37,99,235,.3);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-primary:hover{background:var(--blue-dk)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--text3);font-size:12px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.btn-google{
+  width:100%;padding:9px;border-radius:8px;
+  border:1.5px solid var(--border);background:#fff;
+  font-size:13px;font-weight:550;cursor:pointer;
+  font-family:inherit;transition:all .15s;color:var(--text2);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.btn-google:hover{background:var(--bg3);border-color:#C8CCDA}
+.error-msg{display:none;background:var(--red-bg);color:var(--red);font-size:12px;padding:9px 12px;border-radius:7px;margin-bottom:14px;border:1px solid #FECACA}
+.error-msg.show{display:block}
+.invite-section{margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
+.invite-label{font-size:12px;color:var(--text3);margin-bottom:8px;text-align:center}
+.invite-row{display:flex;gap:8px}
+.invite-input{
+  flex:1;font-size:13px;padding:8px 11px;border-radius:8px;
+  border:1.5px solid var(--border);background:#fff;
+  font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;
+  outline:none;transition:border-color .15s;color:var(--text);
+}
+.invite-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.btn-invite{
+  padding:8px 14px;border-radius:8px;border:1.5px solid var(--blue);
+  background:var(--blue-bg);color:var(--blue);font-size:13px;font-weight:600;
+  cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s;
+}
+.btn-invite:hover{background:var(--blue-lt)}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="overlay"></div>
+
+<div class="card">
+  <div class="logo-wrap">
+    <div class="logo-mark" id="logo-mark">
+      <!-- Votre icône ici — remplacé automatiquement si assets/icon.png existe -->
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+        <polyline points="16.5 7.5 19 10"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">ExpiryPro</div>
+      <div class="logo-badge">Gestionnaire d'échéances</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-row">
+    <button class="tab active" id="tab-login" onclick="switchTab('login')">Connexion</button>
+    <button class="tab" id="tab-signup" onclick="switchTab('signup')">Créer un compte</button>
+  </div>
+
+  <div class="error-msg" id="error-msg"></div>
+
+  <!-- Login form -->
+  <div id="form-login">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="vous@example.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="btn-login" onclick="doLogin()">
+      Se connecter
+    </button>
+    <div style="text-align:center;margin-top:12px">
+      <span style="font-size:12px;color:var(--text3);cursor:pointer" onclick="doResetPwd()">Mot de passe oublié ?</span>
+    </div>
+  </div>
+
+  <!-- Signup form -->
+  <div id="form-signup" style="display:none">
+    <div class="form-group">
+      <label>Prénom</label>
+      <input type="text" id="signup-name" placeholder="Votre prénom" autocomplete="given-name">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="signup-email" placeholder="vous@example.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input type="password" id="signup-pwd" placeholder="8 caractères minimum" autocomplete="new-password">
+    </div>
+    <button class="btn-primary" id="btn-signup" onclick="doSignup()">
+      Créer mon compte
+    </button>
+  </div>
+
+  <!-- Google -->
+  <div class="divider">ou</div>
+  <button class="btn-google" onclick="doGoogle()">
+    <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Continuer avec Google
+  </button>
+
+  <!-- Invitation -->
+  <div class="invite-section">
+    <div class="invite-label">Vous avez un code d'invitation ?</div>
+    <div class="invite-row">
+      <input class="invite-input" id="invite-code" placeholder="EXP-XXXX-XXXX" maxlength="13">
+      <button class="btn-invite" onclick="doJoinWithCode()">Rejoindre</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="firebase-config.js"></script>
+<script type="module">
+import { initializeApp }                            from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword,
+         createUserWithEmailAndPassword,
+         sendPasswordResetEmail, updateProfile,
+         GoogleAuthProvider, signInWithPopup,
+         onAuthStateChanged }                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc,
+         collection, query, where, getDocs,
+         updateDoc, serverTimestamp }               from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app  = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// Redirect if already logged in
+onAuthStateChanged(auth, user => {
+  if (user) window.location.href = '/app';
+});
+
+// Try to load custom icon
+const img = new Image();
+img.onload = () => {
+  document.getElementById('logo-mark').innerHTML = `<img src="assets/icon.png" alt="Logo">`;
+};
+img.src = 'assets/icon.png';
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? '<span class="spinner"></span>'
+    : btn.dataset.label || btn.textContent;
+}
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+function clearError() { document.getElementById('error-msg').classList.remove('show'); }
+
+// Créer ou rejoindre le workspace personnel de l'utilisateur
+async function ensurePersonalWorkspace(user) {
+  const wsRef = doc(db, 'workspaces', user.uid);
+  const wsSnap = await getDoc(wsRef);
+  if (!wsSnap.exists()) {
+    await setDoc(wsRef, {
+      name: `Espace de ${user.displayName || user.email}`,
+      ownerId: user.uid,
+      createdAt: serverTimestamp(),
+    });
+    await setDoc(doc(db, `workspaces/${user.uid}/members/${user.uid}`), {
+      email: user.email,
+      displayName: user.displayName || '',
+      role: 'owner',
+      joinedAt: serverTimestamp(),
+      notificationsEnabled: true,
+      monthlyDigest: false,
+    });
+  }
+  return user.uid; // workspaceId = uid pour l'espace perso
+}
+
+// ── Login ──────────────────────────────────────────────────────────────────
+window.doLogin = async () => {
+  clearError();
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pwd').value;
+  if (!email || !pwd) { showError('Veuillez remplir tous les champs.'); return; }
+  setLoading('btn-login', true);
+  try {
+    const { user } = await signInWithEmailAndPassword(auth, email, pwd);
+    await ensurePersonalWorkspace(user);
+    window.location.href = '/app';
+  } catch(e) {
+    showError(e.code === 'auth/invalid-credential' ? 'Email ou mot de passe incorrect.'
+             : e.code === 'auth/too-many-requests'  ? 'Trop de tentatives. Réessayez plus tard.'
+             : 'Erreur de connexion : ' + e.message);
+    setLoading('btn-login', false);
+  }
+};
+
+// ── Signup ─────────────────────────────────────────────────────────────────
+window.doSignup = async () => {
+  clearError();
+  const name  = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pwd   = document.getElementById('signup-pwd').value;
+  if (!name || !email || !pwd) { showError('Veuillez remplir tous les champs.'); return; }
+  if (pwd.length < 8) { showError('Le mot de passe doit contenir au moins 8 caractères.'); return; }
+  setLoading('btn-signup', true);
+  try {
+    const { user } = await createUserWithEmailAndPassword(auth, email, pwd);
+    await updateProfile(user, { displayName: name });
+    await ensurePersonalWorkspace(user);
+    window.location.href = '/app';
+  } catch(e) {
+    showError(e.code === 'auth/email-already-in-use' ? 'Cet email est déjà utilisé.'
+             : 'Erreur : ' + e.message);
+    setLoading('btn-signup', false);
+  }
+};
+
+// ── Google ─────────────────────────────────────────────────────────────────
+window.doGoogle = async () => {
+  clearError();
+  const provider = new GoogleAuthProvider();
+  try {
+    const { user } = await signInWithPopup(auth, provider);
+    await ensurePersonalWorkspace(user);
+    window.location.href = '/app';
+  } catch(e) {
+    if (e.code !== 'auth/popup-closed-by-user')
+      showError('Erreur Google : ' + e.message);
+  }
+};
+
+// ── Reset password ─────────────────────────────────────────────────────────
+window.doResetPwd = async () => {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showError('Entrez votre email pour réinitialiser le mot de passe.'); return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showError('Email de réinitialisation envoyé ! Vérifiez votre boîte mail.');
+    document.getElementById('error-msg').style.background = '#F0FDF4';
+    document.getElementById('error-msg').style.color = '#16A34A';
+    document.getElementById('error-msg').style.borderColor = '#DCFCE7';
+  } catch(e) {
+    showError('Erreur : ' + e.message);
+  }
+};
+
+// ── Rejoindre avec un code d'invitation ───────────────────────────────────
+window.doJoinWithCode = async () => {
+  clearError();
+  const code = document.getElementById('invite-code').value.trim().toUpperCase();
+  if (!code) { showError('Entrez un code d\'invitation.'); return; }
+  if (!auth.currentUser) {
+    showError('Connectez-vous d\'abord, puis utilisez votre code d\'invitation.');
+    return;
+  }
+  try {
+    const inviteRef = doc(db, 'invites', code);
+    const inviteSnap = await getDoc(inviteRef);
+    if (!inviteSnap.exists()) { showError('Code invalide ou expiré.'); return; }
+    const invite = inviteSnap.data();
+    if (invite.usedAt) { showError('Ce code a déjà été utilisé.'); return; }
+
+    // Ajouter l'utilisateur au workspace
+    const user = auth.currentUser;
+    await setDoc(doc(db, `workspaces/${invite.workspaceId}/members/${user.uid}`), {
+      email: user.email,
+      displayName: user.displayName || '',
+      role: invite.role || 'reader',
+      joinedAt: serverTimestamp(),
+      notificationsEnabled: true,
+      monthlyDigest: false,
+      invitedBy: invite.createdBy,
+    });
+
+    // Marquer le code comme utilisé
+    await updateDoc(inviteRef, { usedAt: serverTimestamp(), usedBy: user.uid });
+
+    // Sauvegarder le workspaceId actif dans le profil user
+    await setDoc(doc(db, 'users', user.uid), {
+      activeWorkspaceId: invite.workspaceId
+    }, { merge: true });
+
+    window.location.href = '/app?joined=' + invite.workspaceId;
+  } catch(e) {
+    showError('Erreur : ' + e.message);
+  }
+};
+
+// ── Tab switch ─────────────────────────────────────────────────────────────
+window.switchTab = (tab) => {
+  clearError();
+  document.getElementById('form-login').style.display  = tab==='login'  ? '' : 'none';
+  document.getElementById('form-signup').style.display = tab==='signup' ? '' : 'none';
+  document.getElementById('tab-login').classList.toggle('active',  tab==='login');
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+};
+
+// Enter key
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const tab = document.getElementById('tab-login').classList.contains('active');
+  if (tab) window.doLogin(); else window.doSignup();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isAuth() { return request.auth != null; }
+    function isUser(uid) { return isAuth() && request.auth.uid == uid; }
+
+    function workspaceMember(wsId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/workspaces/$(wsId)/members/$(request.auth.uid));
+    }
+
+    function workspaceRole(wsId, role) {
+      return isAuth() &&
+        get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(request.auth.uid)).data.role == role;
+    }
+
+    function canWrite(wsId) {
+      return workspaceRole(wsId, 'owner') ||
+             workspaceRole(wsId, 'writer');
+    }
+
+    function isOwner(wsId) {
+      return workspaceRole(wsId, 'owner');
+    }
+
+    // ── User profiles ─────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read, write: if isUser(uid);
+    }
+
+    // ── Workspaces ────────────────────────────────────────────────────────────
+    match /workspaces/{wsId} {
+      // Lecture : membres uniquement
+      allow read: if workspaceMember(wsId);
+      // Création : tout utilisateur authentifié peut créer un workspace
+      allow create: if isAuth() && request.resource.data.ownerId == request.auth.uid;
+      // Mise à jour / suppression : propriétaire uniquement
+      allow update, delete: if isOwner(wsId);
+
+      // Membres du workspace
+      match /members/{uid} {
+        allow read: if workspaceMember(wsId);
+        allow write: if isOwner(wsId);
+        // Chaque membre peut lire sa propre entrée pour vérifier son rôle
+        allow read: if isUser(uid);
+      }
+
+      // Éléments de l'inventaire
+      match /items/{itemId} {
+        allow read: if workspaceMember(wsId);
+        allow create, update, delete: if canWrite(wsId);
+      }
+
+      // Préférences du workspace (deadlines activées, etc.)
+      match /settings/{settingId} {
+        allow read: if workspaceMember(wsId);
+        allow write: if canWrite(wsId);
+      }
+    }
+
+    // ── Invitations (codes à usage unique) ───────────────────────────────────
+    match /invites/{code} {
+      // Lecture : tout utilisateur auth peut lire un code pour le valider
+      allow read: if isAuth();
+      // Création : membres owner/writer de leur workspace
+      allow create: if isAuth() && request.resource.data.createdBy == request.auth.uid;
+      // Mise à jour : l'utilisateur qui "consume" le code (usedBy = son uid)
+      allow update: if isAuth() &&
+        resource.data.usedAt == null &&
+        request.resource.data.usedBy == request.auth.uid;
+      // Suppression : propriétaire du workspace source
+      allow delete: if isAuth() &&
+        isOwner(resource.data.workspaceId);
+    }
+  }
+}
