@@ -14,10 +14,13 @@
 // En développement local, remplacer les valeurs ci-dessous
 // avec vos vraies clés Firebase (ne pas commiter !)
 window.FIREBASE_CONFIG = {
-  apiKey:            "REMPLACER_API_KEY",
-  authDomain:        "REMPLACER.firebaseapp.com",
-  projectId:         "REMPLACER",
-  storageBucket:     "REMPLACER.appspot.com",
-  messagingSenderId: "REMPLACER",
-  appId:             "REMPLACER"
+  apiKey: "AIzaSyD0eWx07zv_O4-NUvEHUQuphmc4de4eCkE",
+  authDomain: "expirypro-6dbc8.firebaseapp.com",
+  databaseURL:
+    "https://expirypro-6dbc8-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "expirypro-6dbc8",
+  storageBucket: "expirypro-6dbc8.firebasestorage.app",
+  messagingSenderId: "174798772229",
+  appId: "1:174798772229:web:9aeb0e7f1f93335a35a46c",
+  measurementId: "G-LL78E933W5",
 };
