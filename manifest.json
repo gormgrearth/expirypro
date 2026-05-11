@@ -1,0 +1,28 @@
+{
+  "name": "Congés & Absences",
+  "short_name": "Congés",
+  "description": "Gestion des congés et absences",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F4F2EE",
+  "theme_color": "#2F5FA8",
+  "icons": [
+    {
+      "src": "favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
