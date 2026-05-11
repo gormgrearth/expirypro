@@ -135,3 +135,4 @@ Placer vos fichiers dans `public/assets/` :
 - `public/assets/bg.jpg` → image de fond de la page de connexion
 
 Le fichier `public/index.html` (page de connexion) les utilise automatiquement.
+
