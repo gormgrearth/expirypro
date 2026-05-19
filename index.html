@@ -1214,8 +1214,7 @@ window.importCSV = async function(input) {
   // CSV → JSON pour l'import Firebase
   const reader = new FileReader();
   reader.onload = async e => {
-    const lines = e.target.result.split('
-').filter(l=>l.trim());
+    const lines = e.target.result.split('\n').filter(l=>l.trim());
     let count = 0;
     const toImport = [];
     lines.slice(1).forEach(line => {
@@ -2007,7 +2006,7 @@ window.lDoReset = async function() {
 window.lDoInvite = async function() {
   const code = document.getElementById('l-invite').value.trim().toUpperCase();
   if (!code) { lShowError("Entrez un code d'invitation."); return; }
-  if (!auth.currentUser) { lShowError('Connectez-vous d'abord, puis utilisez le code.'); return; }
+  if (!auth.currentUser) { lShowError("Connectez-vous d'abord, puis utilisez le code."); return; }
   try {
     const invSnap = await getDoc(doc(db, 'invites', code));
     if (!invSnap.exists()) { lShowError('Code invalide ou expiré.'); return; }
