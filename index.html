@@ -317,7 +317,7 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="main-app" style="display:none">
 <div class="header">
   <div class="header-left">
     <div class="logo-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><polyline points="16.5 7.5 19 10"/></svg></div>
@@ -1079,7 +1079,13 @@ async function importFromJSON(jsonString) {
 // ── Firebase integration shim ────────────────────────────────────────────
 
 // ── Auth gate : redirect si non connecté ─────────────────────────────────
+// Timeout de secours : si Firebase ne répond pas en 6s, afficher la connexion
+const _authTimeout = setTimeout(() => {
+  if (document.getElementById('app-splash')) { showLoginUI(); }
+}, 6000);
+
 onAuth((user, wsId) => {
+  clearTimeout(_authTimeout);
   if (!user) { showLoginUI(); return; }
 
   // Mettre à jour l'avatar
@@ -1324,6 +1330,11 @@ function setSyncIndicator(on) {
 function hideSplash() {
   const s = document.getElementById('app-splash');
   if (s) { s.style.opacity='0'; setTimeout(()=>s.remove(),300); }
+  // Also make sure login overlay is hidden and app is visible
+  const lo = document.getElementById('login-overlay');
+  if (lo) lo.style.display = 'none';
+  const appEl = document.querySelector('.app');
+  if (appEl) appEl.style.display = 'flex';
 }
 
 // ── Hook switchView to load share data + settings user info ─────────────
@@ -1917,14 +1928,20 @@ renderNotifList();
 
 // ── Login UI functions ────────────────────────────────────────────────────
 window.showLoginUI = function() {
-  const lo = document.getElementById('login-overlay');
-  if (lo) lo.style.display = 'flex';
   const splash = document.getElementById('app-splash');
   if (splash) splash.remove();
+  const appEl = document.getElementById('main-app');
+  if (appEl) appEl.style.display = 'none';
+  const lo = document.getElementById('login-overlay');
+  if (lo) lo.style.display = 'flex';
 };
 window.hideLoginUI = function() {
   const lo = document.getElementById('login-overlay');
   if (lo) lo.style.display = 'none';
+  // Show the app
+  const splash = document.getElementById('app-splash');
+  if (splash) splash.remove();
+  document.querySelector('.app').style.display = 'flex';
 };
 function lShowError(msg) {
   const el = document.getElementById('lerror');
