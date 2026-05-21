@@ -886,8 +886,24 @@ const firebaseConfig = {
 const app  = initializeApp(window.FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = getFirestore(app);
-window.auth = auth;
-window.db   = db;
+
+// Expose to classic (non-module) scripts
+window.auth            = auth;
+window.db              = db;
+window.doc             = doc;
+window.getDoc          = getDoc;
+window.getDocs         = getDocs;
+window.setDoc          = setDoc;
+window.addDoc          = addDoc;
+window.updateDoc       = updateDoc;
+window.deleteDoc       = deleteDoc;
+window.collection      = collection;
+window.query           = query;
+window.where           = where;
+window.orderBy         = orderBy;
+window.onSnapshot      = onSnapshot;
+window.serverTimestamp = serverTimestamp;
+window.writeBatch      = writeBatch;
 
 let _currentUser     = null;
 let _workspaceId     = null;   // workspace actif
