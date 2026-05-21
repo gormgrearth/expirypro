@@ -1383,6 +1383,132 @@ window.switchView = function(name, el) {
   }
 };
 
+// ── Login / Signup functions (must live in module to access auth & db) ───
+
+async function ensurePersonalWorkspace(user) {
+  const wsRef  = doc(db, 'workspaces', user.uid);
+  const wsSnap = await getDoc(wsRef);
+  if (!wsSnap.exists()) {
+    await setDoc(wsRef, {
+      name: `Espace de ${user.displayName || user.email}`,
+      ownerId: user.uid,
+      createdAt: serverTimestamp()
+    });
+    await setDoc(doc(db, `workspaces/${user.uid}/members/${user.uid}`), {
+      email: user.email,
+      displayName: user.displayName || '',
+      role: 'owner',
+      joinedAt: serverTimestamp(),
+      notificationsEnabled: true,
+      monthlyDigest: false,
+    });
+  }
+}
+
+function lShowError(msg) {
+  const el = document.getElementById('lerror');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 5000);
+}
+function lSetLoading(btnId, on) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = on; btn.style.opacity = on ? '.6' : '1';
+}
+
+window.lSwitchTab = function(tab) {
+  document.getElementById('lform-login').style.display  = tab === 'login'  ? '' : 'none';
+  document.getElementById('lform-signup').style.display = tab === 'signup' ? '' : 'none';
+  const al = document.getElementById('ltab-login');
+  const as = document.getElementById('ltab-signup');
+  if (tab === 'login') {
+    al.style.cssText += ';background:#fff;color:#0C1226;box-shadow:0 1px 4px rgba(0,0,0,.1)';
+    as.style.cssText += ';background:transparent;color:#8892A8;box-shadow:none';
+  } else {
+    as.style.cssText += ';background:#fff;color:#0C1226;box-shadow:0 1px 4px rgba(0,0,0,.1)';
+    al.style.cssText += ';background:transparent;color:#8892A8;box-shadow:none';
+  }
+};
+
+window.lDoLogin = async function() {
+  const email = document.getElementById('l-email').value.trim();
+  const pwd   = document.getElementById('l-pwd').value;
+  if (!email || !pwd) { lShowError('Veuillez remplir tous les champs.'); return; }
+  lSetLoading('lbtn-login', true);
+  try {
+    const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    await signInWithEmailAndPassword(auth, email, pwd);
+    window.hideLoginUI();
+  } catch(e) {
+    lShowError(e.code === 'auth/invalid-credential' ? 'Email ou mot de passe incorrect.' : 'Erreur : ' + e.message);
+    lSetLoading('lbtn-login', false);
+  }
+};
+
+window.lDoSignup = async function() {
+  const name  = document.getElementById('l-name').value.trim();
+  const email = document.getElementById('l-signup-email').value.trim();
+  const pwd   = document.getElementById('l-signup-pwd').value;
+  if (!name || !email || !pwd) { lShowError('Veuillez remplir tous les champs.'); return; }
+  if (pwd.length < 8) { lShowError('Mot de passe : 8 caractères minimum.'); return; }
+  lSetLoading('lbtn-signup', true);
+  try {
+    const { createUserWithEmailAndPassword, updateProfile } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+    await updateProfile(cred.user, { displayName: name });
+    await ensurePersonalWorkspace(cred.user);
+    window.hideLoginUI();
+  } catch(e) {
+    lShowError(e.code === 'auth/email-already-in-use' ? 'Cet email est déjà utilisé.' : 'Erreur : ' + e.message);
+    lSetLoading('lbtn-signup', false);
+  }
+};
+
+window.lDoGoogle = async function() {
+  try {
+    const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    await ensurePersonalWorkspace(cred.user);
+    window.hideLoginUI();
+  } catch(e) {
+    if (e.code !== 'auth/popup-closed-by-user') lShowError('Erreur Google : ' + e.message);
+  }
+};
+
+window.lDoReset = async function() {
+  const email = document.getElementById('l-email').value.trim();
+  if (!email) { lShowError('Entrez votre email pour réinitialiser.'); return; }
+  try {
+    const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    await sendPasswordResetEmail(auth, email);
+    const el = document.getElementById('lerror');
+    el.textContent = 'Email envoyé ! Vérifiez votre boîte mail.';
+    el.style.cssText += ';display:block;background:#F0FDF4;color:#16A34A;border-color:#DCFCE7';
+  } catch(e) { lShowError('Erreur : ' + e.message); }
+};
+
+window.lDoInvite = async function() {
+  const code = document.getElementById('l-invite').value.trim().toUpperCase();
+  if (!code) { lShowError("Entrez un code d'invitation."); return; }
+  if (!auth.currentUser) { lShowError("Connectez-vous d'abord, puis utilisez le code."); return; }
+  try {
+    const invSnap = await getDoc(doc(db, 'invites', code));
+    if (!invSnap.exists()) { lShowError('Code invalide ou expiré.'); return; }
+    const inv = invSnap.data();
+    if (inv.usedAt) { lShowError('Ce code a déjà été utilisé.'); return; }
+    const u = auth.currentUser;
+    await setDoc(doc(db, `workspaces/${inv.workspaceId}/members/${u.uid}`), {
+      email: u.email, displayName: u.displayName || '', role: inv.role || 'reader',
+      joinedAt: serverTimestamp(), notificationsEnabled: true, invitedBy: inv.createdBy,
+    });
+    await updateDoc(doc(db, 'invites', code), { usedAt: serverTimestamp(), usedBy: u.uid });
+    await setDoc(doc(db, 'users', u.uid), { activeWorkspaceId: inv.workspaceId }, { merge: true });
+    window.hideLoginUI();
+    showToast('Espace rejoint !', 'ok');
+  } catch(e) { lShowError('Erreur : ' + e.message); }
+};
+
 </script>
 
 <script>
@@ -1968,119 +2094,12 @@ window.showLoginUI = function() {
 window.hideLoginUI = function() {
   const lo = document.getElementById('login-overlay');
   if (lo) lo.style.display = 'none';
-  // Show the app
   const splash = document.getElementById('app-splash');
   if (splash) splash.remove();
   document.querySelector('.app').style.display = 'flex';
 };
-function lShowError(msg) {
-  const el = document.getElementById('lerror');
-  el.textContent = msg; el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 5000);
-}
-function lSetLoading(btnId, on) {
-  const btn = document.getElementById(btnId);
-  if (!btn) return;
-  btn.disabled = on; btn.style.opacity = on ? '.6' : '1';
-}
-window.lSwitchTab = function(tab) {
-  document.getElementById('lform-login').style.display  = tab==='login'  ? '' : 'none';
-  document.getElementById('lform-signup').style.display = tab==='signup' ? '' : 'none';
-  const al = document.getElementById('ltab-login');
-  const as = document.getElementById('ltab-signup');
-  if (tab==='login') {
-    al.style.cssText += ';background:#fff;color:#0C1226;box-shadow:0 1px 4px rgba(0,0,0,.1)';
-    as.style.cssText += ';background:transparent;color:#8892A8;box-shadow:none';
-  } else {
-    as.style.cssText += ';background:#fff;color:#0C1226;box-shadow:0 1px 4px rgba(0,0,0,.1)';
-    al.style.cssText += ';background:transparent;color:#8892A8;box-shadow:none';
-  }
-};
-window.lDoLogin = async function() {
-  const email = document.getElementById('l-email').value.trim();
-  const pwd   = document.getElementById('l-pwd').value;
-  if (!email || !pwd) { lShowError('Veuillez remplir tous les champs.'); return; }
-  lSetLoading('lbtn-login', true);
-  try {
-    const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    await signInWithEmailAndPassword(auth, email, pwd);
-    hideLoginUI();
-  } catch(e) {
-    lShowError(e.code === 'auth/invalid-credential' ? 'Email ou mot de passe incorrect.' : 'Erreur : ' + e.message);
-    lSetLoading('lbtn-login', false);
-  }
-};
-window.lDoSignup = async function() {
-  const name  = document.getElementById('l-name').value.trim();
-  const email = document.getElementById('l-signup-email').value.trim();
-  const pwd   = document.getElementById('l-signup-pwd').value;
-  if (!name||!email||!pwd) { lShowError('Veuillez remplir tous les champs.'); return; }
-  if (pwd.length < 8) { lShowError('Mot de passe : 8 caractères minimum.'); return; }
-  lSetLoading('lbtn-signup', true);
-  try {
-    const { createUserWithEmailAndPassword, updateProfile } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    const cred = await createUserWithEmailAndPassword(auth, email, pwd);
-    await updateProfile(cred.user, { displayName: name });
-    await ensurePersonalWorkspace(cred.user);
-    hideLoginUI();
-  } catch(e) {
-    lShowError(e.code === 'auth/email-already-in-use' ? 'Cet email est déjà utilisé.' : 'Erreur : ' + e.message);
-    lSetLoading('lbtn-signup', false);
-  }
-};
-window.lDoGoogle = async function() {
-  try {
-    const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    const provider = new GoogleAuthProvider();
-    const cred = await signInWithPopup(auth, provider);
-    await ensurePersonalWorkspace(cred.user);
-    hideLoginUI();
-  } catch(e) {
-    if (e.code !== 'auth/popup-closed-by-user') lShowError('Erreur Google : ' + e.message);
-  }
-};
-window.lDoReset = async function() {
-  const email = document.getElementById('l-email').value.trim();
-  if (!email) { lShowError('Entrez votre email pour réinitialiser.'); return; }
-  try {
-    const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    await sendPasswordResetEmail(auth, email);
-    const el = document.getElementById('lerror');
-    el.textContent = 'Email envoyé ! Vérifiez votre boîte mail.';
-    el.style.cssText += ';display:block;background:#F0FDF4;color:#16A34A;border-color:#DCFCE7';
-  } catch(e) { lShowError('Erreur : ' + e.message); }
-};
-window.lDoInvite = async function() {
-  const code = document.getElementById('l-invite').value.trim().toUpperCase();
-  if (!code) { lShowError("Entrez un code d'invitation."); return; }
-  if (!auth.currentUser) { lShowError("Connectez-vous d'abord, puis utilisez le code."); return; }
-  try {
-    const invSnap = await getDoc(doc(db, 'invites', code));
-    if (!invSnap.exists()) { lShowError('Code invalide ou expiré.'); return; }
-    const inv = invSnap.data();
-    if (inv.usedAt) { lShowError('Ce code a déjà été utilisé.'); return; }
-    const u = auth.currentUser;
-    await setDoc(doc(db, `workspaces/${inv.workspaceId}/members/${u.uid}`), {
-      email: u.email, displayName: u.displayName||'', role: inv.role||'reader',
-      joinedAt: serverTimestamp(), notificationsEnabled: true, invitedBy: inv.createdBy,
-    });
-    await updateDoc(doc(db, 'invites', code), { usedAt: serverTimestamp(), usedBy: u.uid });
-    await setDoc(doc(db, 'users', u.uid), { activeWorkspaceId: inv.workspaceId }, { merge: true });
-    hideLoginUI();
-    showToast('Espace rejoint !', 'ok');
-  } catch(e) { lShowError('Erreur : ' + e.message); }
-};
-async function ensurePersonalWorkspace(user) {
-  const wsRef  = doc(db, 'workspaces', user.uid);
-  const wsSnap = await getDoc(wsRef);
-  if (!wsSnap.exists()) {
-    await setDoc(wsRef, { name: `Espace de ${user.displayName||user.email}`, ownerId: user.uid, createdAt: serverTimestamp() });
-    await setDoc(doc(db, `workspaces/${user.uid}/members/${user.uid}`), {
-      email: user.email, displayName: user.displayName||'', role: 'owner',
-      joinedAt: serverTimestamp(), notificationsEnabled: true, monthlyDigest: false,
-    });
-  }
-}
+// Note: lDoLogin, lDoSignup, lDoGoogle, lDoReset, lDoInvite, lSwitchTab
+// are defined in the module script above to have access to auth & db.
 
 </script>
 
