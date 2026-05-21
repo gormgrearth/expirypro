@@ -886,6 +886,8 @@ const firebaseConfig = {
 const app  = initializeApp(window.FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+window.auth = auth;
+window.db   = db;
 
 let _currentUser     = null;
 let _workspaceId     = null;   // workspace actif
