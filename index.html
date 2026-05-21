@@ -556,6 +556,31 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
 
 </div></div></div>
 
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyD0eWx07zv_O4-NUvEHUQuphmc4de4eCkE",
+  authDomain: "expirypro-6dbc8.firebaseapp.com",
+  databaseURL: "https://expirypro-6dbc8-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "expirypro-6dbc8",
+  storageBucket: "expirypro-6dbc8.firebasestorage.app",
+  messagingSenderId: "174798772229",
+  appId: "1:174798772229:web:9aeb0e7f1f93335a35a46c",
+  measurementId: "G-LL78E933W5"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+
+  
 <!-- MODAL AJOUT/MODIFICATION -->
 <div class="modal-overlay" id="item-modal" onclick="if(event.target.id==='item-modal')closeModal()">
 <div class="modal">
