@@ -1674,7 +1674,7 @@ function renderTable(){
     const rl=recurLabel(i.recur);
     const needsRenew = rl && days<=0;
     return `<tr data-id="${i.id}" onclick="handleRow(event,'${i.id}')" style="${st.cls==='expired'&&!rl?'opacity:.6':''}cursor:pointer">
-      <td><div style="font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">${rl?`<span class="recur-dot" title="Récurrent : ${escHtml(rl)}"></span>`:''}${escHtml(i.name)}</div><div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap">${escHtml(i.ref||'')?`<span style="font-size:11px;color:var(--text3)">${escHtml(i.ref)}</span>`:''}${rl?`<span class="recur-badge" style="font-size:10px">&#8635; ${escHtml(rl)}</span>`:''}</div></td>
+      <td><div style="font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">${rl?`<span class="recur-dot" title="Récurrent : ${escHtml(rl)}"></span>`:''}${escHtml(i.name)}</div><div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center">${i.issuer?`<span style="font-size:11px;color:#0891B2;font-weight:500">${escHtml(i.issuer)}</span>`:''} ${i.value>0?`<span style="font-size:11px;color:var(--blue);font-weight:600">${i.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>`:''} ${escHtml(i.ref||'')?`<span style="font-size:11px;color:var(--text3)">${escHtml(i.ref)}</span>`:''} ${rl?`<span class="recur-badge" style="font-size:10px">&#8635; ${escHtml(rl)}</span>`:''}</div></td>
       <td><span class="tag ${CAT_COLORS[i.cat]||'neutral'}">${escHtml(i.cat)}</span></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px">${fmtShort(i.expiry)}</td>
       <td><span class="tag ${st.cls==='expired'?'expired':st.cls}">${st.label}</span></td>
