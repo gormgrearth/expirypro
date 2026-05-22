@@ -605,8 +605,14 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
   </div>
   <div class="form-row">
     <div class="form-group">
-      <label id="lbl-value">Valeur (€)</label>
+      <label id="lbl-value">Montant (€)</label>
       <input type="number" id="f-value" value="0" step="0.01" min="0">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:400;color:var(--text2);margin:0">
+          <input type="checkbox" id="f-debit" checked style="width:15px;height:15px;accent-color:var(--red);cursor:pointer" onchange="const l=document.getElementById('f-debit-label');if(this.checked){l.textContent='💸 Débiteur';l.style.color='var(--red)'}else{l.textContent='💰 Créditeur';l.style.color='var(--green)'}">
+          <span id="f-debit-label" style="color:var(--red);font-weight:600">💸 Débiteur</span>
+        </label>
+      </div>
     </div>
     <div class="form-group">
       <label>Numéro / Référence</label>
@@ -1178,6 +1184,7 @@ onAuth((user, wsId) => {
       recur: i.recur || 'none',
       recurAnchor: i.recurAnchor || 'expiry',
       notes: i.notes || '',
+      isDebit: i.isDebit !== false,
       date: i.updatedAt ? new Date(i.updatedAt.toDate()).toLocaleDateString('fr-FR') : '—',
       history: (i.history || []).map(h => ({ text: h.text, time: h.time || '' })),
     }));
@@ -1210,6 +1217,7 @@ window.saveItem = async function() {
     recur:       document.getElementById('f-recur').value||'none',
     recurAnchor: document.getElementById('f-recur-anchor').value||'expiry',
     notes:       document.getElementById('f-notes').value.trim(),
+    isDebit:     document.getElementById('f-debit').checked,
   };
 
   setSyncIndicator(true);
@@ -1548,7 +1556,7 @@ const CAT_ICONS = {'Cartes & bons':'ti-credit-card','Documents officiels':'ti-fi
 const CAT_COLORS = {'Cartes & bons':'purple','Documents officiels':'info','Impôts & taxes':'warn','Abonnements':'teal','Assurances':'ok','Autre':'neutral'};
 
 let items = [];
-let nextId=1, currentFilter='all', currentCatFilter=null, confirmCb=null;
+let nextId=1, confirmCb=null; window.currentFilter='all'; window.currentCatFilter=null; window._keepCatFilter=false;
 // Expose mutable state on window so the module script can read/write it
 window.editingId = null;
 window.detailId  = null;
@@ -1656,11 +1664,11 @@ function renderTable(){
     const matchQ=!q||i.name.toLowerCase().includes(q)||i.cat.toLowerCase().includes(q)||(i.issuer||'').toLowerCase().includes(q)||(i.ref||'').toLowerCase().includes(q)||(i.notes||'').toLowerCase().includes(q);
     const d=daysUntil(i.expiry); const st=getStatus(d);
     let matchF=true;
-    if(currentCatFilter) matchF=i.cat===currentCatFilter;
-    else if(currentFilter==='ok') matchF=st.cls==='ok';
-    else if(currentFilter==='warn') matchF=st.cls==='warn';
-    else if(currentFilter==='err') matchF=st.cls==='err';
-    else if(currentFilter==='expired') matchF=st.cls==='expired';
+    if(window.currentCatFilter) matchF=i.cat===window.currentCatFilter;
+    else if(window.currentFilter==='ok') matchF=st.cls==='ok';
+    else if(window.currentFilter==='warn') matchF=st.cls==='warn';
+    else if(window.currentFilter==='err') matchF=st.cls==='err';
+    else if(window.currentFilter==='expired') matchF=st.cls==='expired';
     return matchQ&&matchF;
   });
   fil.sort((a,b)=>{
@@ -1686,7 +1694,7 @@ function renderTable(){
       <td style="font-family:'DM Mono',monospace;font-size:12px">${fmtShort(i.expiry)}</td>
       <td><span class="tag ${st.cls==='expired'?'expired':st.cls}">${st.label}</span></td>
       <td><div style="font-size:12px;font-weight:600;color:${bc}">${daysLbl(days)}</div><div class="expiry-bar"><div class="expiry-bar-fill" style="width:${pct}%;background:${bc}"></div></div></td>
-      <td style="font-size:13px;color:var(--blue);font-weight:500">${val}</td>
+      <td style="font-size:13px;font-weight:600;color:${i.isDebit!==false?'var(--red)':'var(--green)'}">${val==='—'?val:(i.isDebit!==false?'−':'+')+val}</td>
       <td style="font-size:12px;color:var(--text3)">${escHtml(i.issuer||'—')}</td>
       <td onclick="event.stopPropagation()"><div class="row-actions">
         ${needsRenew?`<button class="icon-btn validate" onclick="openRenewModal('${i.id}')" title="Valider &amp; renouveler" style="background:var(--green-bg);color:var(--green);border-color:var(--green-lt)"><b>&#10003;</b></button>`:''}
@@ -1746,7 +1754,7 @@ function updateStats(){
           <span style="font-size:13px;font-weight:500">${escHtml(i.name)}</span>
           ${i.issuer?`<span style="font-size:11px;color:#0891B2;margin-left:6px">${escHtml(i.issuer)}</span>`:''}
         </div>
-        <span style="font-size:13px;font-weight:600;color:var(--blue)">${i.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>
+        <span style="font-size:13px;font-weight:600;color:${i.isDebit!==false?'var(--red)':'var(--green)'}">${(i.isDebit!==false?'−':'+ ')+ i.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>
       </div>`).join('');
     return `<details style="margin-bottom:12px;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden">
       <summary style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none;background:var(--bg2)">
@@ -1772,7 +1780,7 @@ function renderDashUrgent(){
     const bg=st.cls==='expired'?'#F3F4F6':st.cls==='err'?'var(--red-bg)':'var(--amber-bg)';
     return `<div class="deadline-item" onclick="openDetail('${i.id}')">
       <div class="deadline-icon" style="background:${bg};color:${col}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
-      <div style="flex:1"><div style="font-size:13px;font-weight:500">${escHtml(i.name)}</div><div style="font-size:11px;color:var(--text3)">${escHtml(i.cat)} · ${fmtDate(i.expiry)}</div></div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:500">${escHtml(i.name)}${i.issuer?` <span style="font-size:11px;color:#0891B2;font-weight:500">${escHtml(i.issuer)}</span>`:''}</div><div style="font-size:11px;color:var(--text3)">${escHtml(i.cat)} · ${fmtDate(i.expiry)}${i.value>0?` · <span style="color:var(--blue);font-weight:600">${i.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>`:''}</div></div>
       <div style="font-size:12px;font-weight:600;color:${col}">${daysLbl(days)}</div>
       <button class="icon-btn edit-btn" onclick="event.stopPropagation();openEditModal('${i.id}')" title="Modifier"><b>&#9998;</b></button>
     </div>`;
@@ -2042,9 +2050,9 @@ function applyTpl(i){ const t=QTPL[i]; document.querySelectorAll('#quick-chips .
 function updateCatFields(){ const c=document.getElementById('f-cat').value; document.getElementById('lbl-value').textContent=c==='Impôts & taxes'?'Montant estimé (€)':c==='Abonnements'?'Montant mensuel (€)':c==='Assurances'?'Prime annuelle (€)':'Valeur (€)'; document.getElementById('lbl-issuer').textContent=c==='Impôts & taxes'?'Organisme (DGFIP…)':c==='Assurances'?'Assureur':'Émetteur / Organisme'; }
 function updateExpiryPreview(){ const v=document.getElementById('f-expiry').value; const p=document.getElementById('expiry-preview'); if(!v){p.style.display='none';updateRecurHint();return;} const days=daysUntil(v); const st=getStatus(days); const bgs={expired:'#F3F4F6',err:'var(--red-bg)',warn:'var(--amber-bg)',ok:'var(--green-bg)'}; const cols={expired:'#6B7280',err:'var(--red)',warn:'var(--amber)',ok:'var(--green)'}; p.style.display=''; p.style.background=bgs[st.cls]; p.style.color=cols[st.cls]; p.textContent=daysLbl(days)+' · '+fmtDate(v); updateRecurHint(); }
 
-function openAddModal(){ window.editingId=null; buildChips(); document.getElementById('modal-title').textContent='Ajouter un élément'; document.getElementById('modal-subtitle').textContent='Carte, document, abonnement, échéance fiscale…'; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer'; ['f-name','f-ref','f-issuer','f-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-cat').value='Cartes & bons'; document.getElementById('f-expiry').value=''; document.getElementById('f-issued').value=''; document.getElementById('f-value').value='0'; document.getElementById('f-remind').value='30'; document.getElementById('f-recur').value='none'; document.getElementById('f-recur-anchor').value='expiry'; document.getElementById('fg-recur-anchor').style.display='none'; document.getElementById('recur-hint').style.display='none'; document.getElementById('expiry-preview').style.display='none'; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
+function openAddModal(){ window.editingId=null; buildChips(); document.getElementById('modal-title').textContent='Ajouter un élément'; document.getElementById('modal-subtitle').textContent='Carte, document, abonnement, échéance fiscale…'; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer'; ['f-name','f-ref','f-issuer','f-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-cat').value='Cartes & bons'; document.getElementById('f-expiry').value=''; document.getElementById('f-issued').value=''; document.getElementById('f-value').value='0'; document.getElementById('f-remind').value='30'; document.getElementById('f-recur').value='none'; document.getElementById('f-recur-anchor').value='expiry'; document.getElementById('f-debit').checked=true; document.getElementById('f-debit-label').textContent='💸 Débiteur'; document.getElementById('f-debit-label').style.color='var(--red)'; document.getElementById('fg-recur-anchor').style.display='none'; document.getElementById('recur-hint').style.display='none'; document.getElementById('expiry-preview').style.display='none'; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
 
-function openEditModal(id){ const item=items.find(i=>i.id===id); if(!item) return; window.editingId=id; buildChips(); document.getElementById('modal-title').textContent='Modifier'; document.getElementById('modal-subtitle').textContent=item.name; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Mettre à jour'; document.getElementById('f-name').value=item.name; document.getElementById('f-cat').value=item.cat; document.getElementById('f-expiry').value=item.expiry||''; document.getElementById('f-issued').value=item.issued||''; document.getElementById('f-value').value=item.value||0; document.getElementById('f-ref').value=item.ref||''; document.getElementById('f-issuer').value=item.issuer||''; document.getElementById('f-remind').value=item.remind||30; document.getElementById('f-recur').value=item.recur||'none'; document.getElementById('f-recur-anchor').value=item.recurAnchor||'expiry'; document.getElementById('f-notes').value=item.notes||''; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); updateExpiryPreview(); updateRecurHint(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
+function openEditModal(id){ const item=items.find(i=>i.id===id); if(!item) return; window.editingId=id; buildChips(); document.getElementById('modal-title').textContent='Modifier'; document.getElementById('modal-subtitle').textContent=item.name; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Mettre à jour'; document.getElementById('f-name').value=item.name; document.getElementById('f-cat').value=item.cat; document.getElementById('f-expiry').value=item.expiry||''; document.getElementById('f-issued').value=item.issued||''; document.getElementById('f-value').value=item.value||0; document.getElementById('f-ref').value=item.ref||''; document.getElementById('f-issuer').value=item.issuer||''; document.getElementById('f-remind').value=item.remind||30; document.getElementById('f-recur').value=item.recur||'none'; document.getElementById('f-recur-anchor').value=item.recurAnchor||'expiry'; document.getElementById('f-notes').value=item.notes||''; document.getElementById('f-debit').checked=item.isDebit!==false; const _dl=document.getElementById('f-debit-label'); if(item.isDebit!==false){_dl.textContent='💸 Débiteur';_dl.style.color='var(--red)';}else{_dl.textContent='💰 Créditeur';_dl.style.color='var(--green)';}; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); updateExpiryPreview(); updateRecurHint(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
 
 function closeModal(){ document.getElementById('item-modal').classList.remove('open'); }
 
@@ -2078,11 +2086,11 @@ function confirmDelete(id){ const item=items.find(i=>i.id===id); if(!item) retur
 function deleteItem(id){ const item=items.find(i=>i.id===id); items=items.filter(i=>i.id!==id); if(window.detailId===id)closeDetail(); refresh(); showToast((item?.name||'Élément')+' supprimé','info'); }
 function confirmClearAll(){ openConfirm('Effacer toutes les données ?','Tous vos éléments seront supprimés définitivement.',()=>{items=[];refresh();showToast('Données effacées','info');}); }
 
-function setFilter(f,el){ currentFilter=f; currentCatFilter=null; document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active')); if(el) el.classList.add('active'); renderTable(); }
-function filterStatus(f,el){ closeSidebarOnMobile(); currentCatFilter=null; switchView('items',el); setTimeout(()=>setFilter(f,document.querySelector(`.filter-pill[data-f="${f}"]`)),50); }
-function filterCat(cat,el){ closeSidebarOnMobile(); currentCatFilter=cat; currentFilter='all'; document.querySelector('.filter-pill[data-f="all"]').classList.add('active'); document.querySelectorAll('.filter-pill').forEach(p=>{if(p.dataset.f!=='all') p.classList.remove('active');}); document.getElementById('items-title').textContent=cat; document.getElementById('items-subtitle').textContent='Filtre par catégorie : '+cat; switchView('items',el); renderTable(); }
+function setFilter(f,el){ window.currentFilter=f; window.currentCatFilter=null; document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active')); if(el) el.classList.add('active'); renderTable(); }
+function filterStatus(f,el){ closeSidebarOnMobile(); window.currentCatFilter=null; switchView('items',el); setTimeout(()=>setFilter(f,document.querySelector(`.filter-pill[data-f="${f}"]`)),50); }
+function filterCat(cat,el){ closeSidebarOnMobile(); window.currentCatFilter=cat; window.currentFilter='all'; document.querySelector('.filter-pill[data-f="all"]').classList.add('active'); document.querySelectorAll('.filter-pill').forEach(p=>{if(p.dataset.f!=='all') p.classList.remove('active');}); document.getElementById('items-title').textContent=cat; document.getElementById('items-subtitle').textContent='Filtre par catégorie : '+cat; window._keepCatFilter=true; switchView('items',el); renderTable(); }
 
-window._switchViewClassic = function(name,el){ closeSidebarOnMobile(); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.getElementById('view-'+name).classList.add('active'); if(el) el.classList.add('active'); if(name==='calendar') renderCalendar(); if(name==='notifs') renderNotifList(); if(name==='items'){ document.getElementById('items-title').textContent='Tous les éléments'; document.getElementById('items-subtitle').textContent='Gérez vos cartes, documents et échéances'; currentCatFilter=null; setFilter('all',document.querySelector('.filter-pill[data-f="all"]')); } }
+window._switchViewClassic = function(name,el){ closeSidebarOnMobile(); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.getElementById('view-'+name).classList.add('active'); if(el) el.classList.add('active'); if(name==='calendar') renderCalendar(); if(name==='notifs') renderNotifList(); if(name==='items' && !window._keepCatFilter){ document.getElementById('items-title').textContent='Tous les éléments'; document.getElementById('items-subtitle').textContent='Gérez vos cartes, documents et échéances'; window.currentCatFilter=null; setFilter('all',document.querySelector('.filter-pill[data-f="all"]')); } window._keepCatFilter=false; }
 
 function exportCSV(){ const h='nom,categorie,expiration,emission,valeur,reference,organisme,rappel,notes'; const rows=items.map(i=>[i.name,i.cat,i.expiry,i.issued||'',i.value||0,i.ref||'',i.issuer||'',i.remind||30,i.notes||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')); dl('expirypro.csv',[h,...rows].join('\n'),'text/csv'); showToast('Export CSV téléchargé','ok'); }
 function exportJSON(){ dl('expirypro.json',JSON.stringify(items,null,2),'application/json'); showToast('Export JSON téléchargé','ok'); }
