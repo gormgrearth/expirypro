@@ -386,8 +386,8 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
     <div class="stat-card" onclick="filterStatus('err',document.getElementById('nav-urg'))">
       <div class="stat-label">Urgents &lt;30j</div><div class="stat-val" style="color:var(--amber)" id="ds-urgent">0</div><div class="stat-sub">à surveiller</div>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;color:var(--amber);"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-    <div class="stat-card">
-      <div class="stat-label">Valeur active</div><div class="stat-val" style="color:var(--blue)" id="ds-value">0 €</div><div class="stat-sub">cartes &amp; bons valides</div>
+    <div class="stat-card" onclick="document.getElementById('dash-value-panel').scrollIntoView({behavior:'smooth'})">
+      <div class="stat-label">Valeur totale</div><div class="stat-val" style="color:var(--blue)" id="ds-value">0 €</div><div class="stat-sub" id="ds-value-sub">répartie par catégorie ↓</div>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4 10h12"/><path d="M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/></svg></div>
     <div class="stat-card">
       <div class="stat-label">Prochaine échéance</div><div class="stat-val" style="font-size:13px;padding-top:4px" id="ds-next">—</div><div class="stat-sub" id="ds-next-days"></div>
@@ -396,6 +396,13 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
   <div class="panel" id="dash-urgent-panel" style="display:none">
     <div class="panel-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Échéances urgentes (≤ 30 jours)</div>
     <div id="dash-urgent-list"></div>
+  </div>
+  <div class="panel" id="dash-value-panel" style="display:none">
+    <div class="panel-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4 10h12"/><path d="M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/></svg>
+      Valeurs par catégorie
+    </div>
+    <div id="dash-value-by-cat"></div>
   </div>
   <div class="panel">
     <div class="panel-title" style="justify-content:space-between">
@@ -1702,7 +1709,8 @@ function handleRow(e,id){
 function updateStats(){
   const expired=items.filter(i=>daysUntil(i.expiry)<0).length;
   const urgent=items.filter(i=>{const d=daysUntil(i.expiry);return d>=0&&d<=30;}).length;
-  const val=items.filter(i=>i.value>0&&daysUntil(i.expiry)>=0).reduce((a,i)=>a+(i.value||0),0);
+  const activeWithVal=items.filter(i=>i.value>0&&daysUntil(i.expiry)>=0);
+  const val=activeWithVal.reduce((a,i)=>a+(i.value||0),0);
   const nxt=[...items].filter(i=>daysUntil(i.expiry)>=0).sort((a,b)=>new Date(a.expiry)-new Date(b.expiry))[0];
   document.getElementById('ds-total').textContent=items.length;
   document.getElementById('ds-expired').textContent=expired;
@@ -1715,6 +1723,42 @@ function updateStats(){
   document.getElementById('badge-urgent').textContent=urgent;
   document.getElementById('badge-urgent').style.display=urgent?'':'none';
   document.getElementById('count-badge').textContent=items.length;
+  // ── Breakdown par catégorie ──────────────────────────────────────────────
+  const panel=document.getElementById('dash-value-panel');
+  const container=document.getElementById('dash-value-by-cat');
+  if(!activeWithVal.length){ panel.style.display='none'; return; }
+  panel.style.display='';
+  // Grouper par catégorie
+  const byCat={};
+  activeWithVal.forEach(i=>{
+    if(!byCat[i.cat]) byCat[i.cat]={total:0,items:[]};
+    byCat[i.cat].total+=i.value;
+    byCat[i.cat].items.push(i);
+  });
+  const cats=Object.entries(byCat).sort((a,b)=>b[1].total-a[1].total);
+  const CAT_COLORS_LOCAL={'Cartes & bons':'#7C3AED','Documents officiels':'#0891B2','Impôts & taxes':'#D97706','Abonnements':'#0D9488','Assurances':'#16A34A','Autre':'#6B7280'};
+  container.innerHTML=cats.map(([cat,data])=>{
+    const pct=val>0?Math.round(data.total/val*100):0;
+    const color=CAT_COLORS_LOCAL[cat]||'#6B7280';
+    const itemList=data.items.map(i=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <span style="font-size:13px;font-weight:500">${escHtml(i.name)}</span>
+          ${i.issuer?`<span style="font-size:11px;color:#0891B2;margin-left:6px">${escHtml(i.issuer)}</span>`:''}
+        </div>
+        <span style="font-size:13px;font-weight:600;color:var(--blue)">${i.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>
+      </div>`).join('');
+    return `<details style="margin-bottom:12px;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <summary style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none;background:var(--bg2)">
+        <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span style="flex:1;font-size:13px;font-weight:600">${escHtml(cat)}</span>
+        <span style="font-size:12px;color:var(--text3);margin-right:8px">${data.items.length} élément${data.items.length>1?'s':''} · ${pct}%</span>
+        <span style="font-size:14px;font-weight:700;color:${color}">${data.total.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>
+        <div style="width:60px;height:6px;background:var(--border);border-radius:3px;margin-left:10px;flex-shrink:0"><div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div></div>
+      </summary>
+      <div style="padding:0 14px 10px">${itemList}</div>
+    </details>`;
+  }).join('');
 }
 
 function renderDashUrgent(){
