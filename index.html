@@ -864,7 +864,8 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
 import { initializeApp }                            from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut,
          GoogleAuthProvider, signInWithPopup }       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc,
+import { getFirestore, enableIndexedDbPersistence,
+         collection, doc,
          onSnapshot, setDoc, addDoc, updateDoc,
          deleteDoc, getDoc, getDocs, query,
          orderBy, serverTimestamp, writeBatch,
@@ -883,9 +884,16 @@ const firebaseConfig = {
 };
   
 // ── Init ────────────────────────────────────────────────────────────────────
-const app  = initializeApp(window.FIREBASE_CONFIG);
+const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+
+// Active le cache offline pour éviter "client is offline" au démarrage
+enableIndexedDbPersistence(db).catch(err => {
+  if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+    console.warn('Offline persistence unavailable:', err);
+  }
+});
 
 // Expose to classic (non-module) scripts
 window.auth            = auth;
@@ -904,6 +912,7 @@ window.orderBy         = orderBy;
 window.onSnapshot      = onSnapshot;
 window.serverTimestamp = serverTimestamp;
 window.writeBatch      = writeBatch;
+
 
 let _currentUser     = null;
 let _workspaceId     = null;   // workspace actif
@@ -991,6 +1000,12 @@ async function renewItem(id, newExpiry) {
     history,
   });
 }
+
+// Expose Firebase CRUD aliases so module-internal callers can reference them
+window.fbAdd    = data       => addItem(data);
+window.fbUpdate = (id, data) => updateItem(id, data);
+window.fbDelete = id         => deleteItem(id);
+window.fbRenew  = (id, date) => renewItem(id, date);
 
 // ── Settings (deadlines enabled, preferences) ──────────────────────────────
 async function getSettings() {
