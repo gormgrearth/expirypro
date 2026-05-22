@@ -919,11 +919,25 @@ function onAuth(callback) {
   onAuthStateChanged(auth, async user => {
     _currentUser = user;
     if (user) {
-      // Déterminer le workspaceId actif (perso ou partagé)
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      _workspaceId = userDoc.exists() && userDoc.data().activeWorkspaceId
-        ? userDoc.data().activeWorkspaceId
-        : user.uid; // fallback = espace perso (uid = wsId)
+      // Récupérer le workspaceId actif avec retry si Firestore n'est pas encore prêt
+      _workspaceId = user.uid; // fallback immédiat
+      const tryGetWorkspace = async (attempt = 0) => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists() && userDoc.data().activeWorkspaceId) {
+            _workspaceId = userDoc.data().activeWorkspaceId;
+          }
+        } catch (err) {
+          if (attempt < 5) {
+            // Retry avec délai exponentiel (500ms, 1s, 2s, 4s, 8s)
+            await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+            return tryGetWorkspace(attempt + 1);
+          }
+          // Après 5 tentatives, on garde le fallback user.uid
+          console.warn('Firestore not reachable, using personal workspace:', err.message);
+        }
+      };
+      await tryGetWorkspace();
     }
     callback(user, _workspaceId);
   });
