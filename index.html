@@ -1003,9 +1003,9 @@ async function renewItem(id, newExpiry) {
 
 // Expose Firebase CRUD aliases so module-internal callers can reference them
 window.fbAdd    = data       => addItem(data);
-window.fbUpdate = (id, data) => updateItem(id, data);
-window.fbDelete = id         => deleteItem(id);
-window.fbRenew  = (id, date) => renewItem(id, date);
+window.fbUpdate = (id, data) => updateItem(String(id), data);
+window.fbDelete = id         => deleteItem(String(id));
+window.fbRenew  = (id, date) => renewItem(String(id), date);
 
 // ── Settings (deadlines enabled, preferences) ──────────────────────────────
 async function getSettings() {
@@ -1165,7 +1165,7 @@ onAuth((user, wsId) => {
       history: (i.history || []).map(h => ({ text: h.text, time: h.time || '' })),
     }));
     nextId = items.length + 1; // éviter les collisions d'ID locaux
-    refresh();
+    window.refresh();
     hideSplash();
   });
 });
@@ -1200,17 +1200,17 @@ window.saveItem = async function() {
   try {
     if (editingId) {
       await fbUpdate(editingId, data);
-      showToast(name + ' mis à jour', 'ok');
+      window.showToast(name + ' mis à jour', 'ok');
     } else {
       await fbAdd(data);
-      showToast(name + ' ajouté', 'ok');
+      window.showToast(name + ' ajouté', 'ok');
     }
   } catch(e) {
-    showToast('Erreur : ' + e.message, 'err');
+    window.showToast('Erreur : ' + e.message, 'err');
   } finally {
     setSyncIndicator(false);
   }
-  closeModal();
+  window.closeModal();
 };
 
 window.deleteItem = async function(id) {
@@ -1218,10 +1218,10 @@ window.deleteItem = async function(id) {
   setSyncIndicator(true);
   try {
     await fbDelete(id);
-    if (detailId===id) closeDetail();
-    showToast((item?.name||'Élément') + ' supprimé', 'info');
+    if (detailId===id) window.closeDetail();
+    window.showToast((item?.name||'Élément') + ' supprimé', 'info');
   } catch(e) {
-    showToast('Erreur suppression : ' + e.message, 'err');
+    window.showToast('Erreur suppression : ' + e.message, 'err');
   } finally {
     setSyncIndicator(false);
   }
@@ -1230,16 +1230,16 @@ window.deleteItem = async function(id) {
 window.confirmRenew = async function() {
   if (!renewItemId) return;
   const newExpiry = document.getElementById('renew-date-input').value;
-  if (!newExpiry) { showToast('Date requise', 'err'); return; }
+  if (!newExpiry) { window.showToast('Date requise', 'err'); return; }
   const item = items.find(i=>i.id===renewItemId);
   setSyncIndicator(true);
   try {
     await fbRenew(renewItemId, newExpiry);
-    closeRenewModal();
-    showToast((item?.name||'Élément') + ' renouvelé', 'ok');
-    if (detailId===renewItemId) setTimeout(()=>openDetail(renewItemId), 500);
+    window.closeRenewModal();
+    window.showToast((item?.name||'Élément') + ' renouvelé', 'ok');
+    if (detailId===renewItemId) setTimeout(()=>window.openDetail(renewItemId), 500);
   } catch(e) {
-    showToast('Erreur : ' + e.message, 'err');
+    window.showToast('Erreur : ' + e.message, 'err');
   } finally {
     setSyncIndicator(false);
     renewItemId = null;
@@ -1247,7 +1247,6 @@ window.confirmRenew = async function() {
 };
 
 // ── Persistance des préférences de deadlines ─────────────────────────────
-const _origSaveDlEnabled = window.saveDlEnabled;
 window.saveDlEnabled = function() {
   // Local (localStorage) + Firebase
   try { localStorage.setItem('dl-enabled', JSON.stringify([..._dlEnabled])); } catch(e) {}
@@ -1257,7 +1256,7 @@ window.saveDlEnabled = function() {
 // ── Export/Import via Firebase service ─────────────────────────────────
 window.exportJSON = function() {
   exportToJSON(items);
-  showToast('Export JSON téléchargé', 'ok');
+  window.showToast('Export JSON téléchargé', 'ok');
 };
 
 window.importCSV = async function(input) {
@@ -1277,9 +1276,9 @@ window.importCSV = async function(input) {
     setSyncIndicator(true);
     try {
       await importFromJSON(JSON.stringify({ items: toImport }));
-      showToast(count + ' élément(s) importé(s)', 'ok');
+      window.showToast(count + ' élément(s) importé(s)', 'ok');
     } catch(e) {
-      showToast('Erreur import : ' + e.message, 'err');
+      window.showToast('Erreur import : ' + e.message, 'err');
     } finally {
       setSyncIndicator(false);
     }
@@ -1332,30 +1331,30 @@ window.generateInviteCode = async function(role) {
   try {
     const code = await createInvite(role);
     await navigator.clipboard.writeText(code).catch(()=>{});
-    showToast('Code créé et copié : ' + code, 'ok');
+    window.showToast('Code créé et copié : ' + code, 'ok');
     loadShareView();
   } catch(e) {
-    showToast('Erreur : ' + e.message, 'err');
+    window.showToast('Erreur : ' + e.message, 'err');
   } finally { setSyncIndicator(false); }
 };
 
 window.revokeCode = async function(code) {
   try {
     await revokeInvite(code);
-    showToast('Code ' + code + ' révoqué', 'info');
+    window.showToast('Code ' + code + ' révoqué', 'info');
     loadShareView();
   } catch(e) {
-    showToast('Erreur : ' + e.message, 'err');
+    window.showToast('Erreur : ' + e.message, 'err');
   }
 };
 
 window.kickMember = async function(uid) {
   try {
     await removeMember(uid);
-    showToast('Membre retiré', 'info');
+    window.showToast('Membre retiré', 'info');
     loadShareView();
   } catch(e) {
-    showToast('Erreur : ' + e.message, 'err');
+    window.showToast('Erreur : ' + e.message, 'err');
   }
 };
 
@@ -1383,9 +1382,9 @@ function hideSplash() {
 }
 
 // ── Hook switchView to load share data + settings user info ─────────────
-const _origSwitchView = window.switchView;
 window.switchView = function(name, el) {
-  _origSwitchView(name, el);
+  // Call classic switchView logic (defined later in classic script)
+  if (typeof window._switchViewClassic === 'function') window._switchViewClassic(name, el);
   if (name === 'share') loadShareView();
   if (name === 'settings') {
     const user = getCurrentUser();
@@ -1520,7 +1519,7 @@ window.lDoInvite = async function() {
     await updateDoc(doc(db, 'invites', code), { usedAt: serverTimestamp(), usedBy: u.uid });
     await setDoc(doc(db, 'users', u.uid), { activeWorkspaceId: inv.workspaceId }, { merge: true });
     window.hideLoginUI();
-    showToast('Espace rejoint !', 'ok');
+    window.showToast('Espace rejoint !', 'ok');
   } catch(e) { lShowError('Erreur : ' + e.message); }
 };
 
@@ -1532,25 +1531,8 @@ const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 const CAT_ICONS = {'Cartes & bons':'ti-credit-card','Documents officiels':'ti-file-certificate','Impôts & taxes':'ti-receipt-tax','Abonnements':'ti-refresh','Assurances':'ti-shield-check','Autre':'ti-dots'};
 const CAT_COLORS = {'Cartes & bons':'purple','Documents officiels':'info','Impôts & taxes':'warn','Abonnements':'teal','Assurances':'ok','Autre':'neutral'};
 
-let items = [
-  {id:1,name:'Carte cadeau FNAC',cat:'Cartes & bons',expiry:'2025-09-15',issued:'2024-12-25',value:50,ref:'GC-8821-FNAC',issuer:'FNAC',remind:30,notes:'Reçue pour Noël. Valable 1 an.',history:[]},
-  {id:2,name:'Chèques Vacances ANCV',cat:'Cartes & bons',expiry:'2025-12-31',issued:'2025-01-01',value:300,ref:'CV-2025',issuer:'ANCV',remind:60,notes:'Utilisables hôtels, transports, loisirs conventionnés.',history:[]},
-  {id:3,name:'Carte de fidélité Monoprix',cat:'Cartes & bons',expiry:'2025-08-01',issued:'2023-08-01',value:0,ref:'MP-47821033',issuer:'Monoprix',remind:30,notes:'Renouveler en ligne ou en caisse.',history:[]},
-  {id:4,name:"Bon d'achat Décathlon",cat:'Cartes & bons',expiry:'2025-07-10',issued:'2025-01-10',value:25,ref:'DEC-25-1234',issuer:'Décathlon',remind:30,notes:'',history:[]},
-  {id:5,name:'Carte cadeau Amazon',cat:'Cartes & bons',expiry:'2026-03-20',issued:'2025-03-20',value:100,ref:'AMZN-XXXX-YYYY-ZZZZ',issuer:'Amazon',remind:30,notes:'',history:[]},
-  {id:6,name:'Carte restaurant (tickets)',cat:'Cartes & bons',expiry:'2025-12-31',issued:'2025-01-01',value:180,ref:'',issuer:'Employeur',remind:30,notes:'Tickets restaurant — valables jusqu\'au 31 décembre.',history:[]},
-  {id:7,name:'Passeport',cat:'Documents officiels',expiry:'2028-04-12',issued:'2018-04-12',value:0,ref:'24AB12345',issuer:'Préfecture de Paris',remind:90,notes:'Renouvellement : 3 mois avant à la préfecture. Coût ~86€.',history:[]},
-  {id:8,name:"Carte nationale d'identité",cat:'Documents officiels',expiry:'2035-06-30',issued:'2025-06-30',value:0,ref:'',issuer:'Mairie',remind:90,notes:'Validité 10 ans pour les adultes. Gratuite en mairie.',history:[]},
-  {id:9,name:'Permis de conduire',cat:'Documents officiels',expiry:'2035-03-15',issued:'2015-03-15',value:0,ref:'99AA12345',issuer:'Préfecture',remind:90,recur:'15years',recurAnchor:'expiry',notes:'Validité 15 ans (depuis 2013).',history:[]},
-  {id:10,name:'Contrôle technique voiture',cat:'Documents officiels',expiry:'2025-11-03',issued:'2023-11-03',value:0,ref:'CT-2023-11',issuer:'Autovision',remind:60,recur:'2years',recurAnchor:'expiry',notes:'À renouveler tous les 2 ans. Prévoir ~80€.',history:[]},
-  {id:11,name:"Vignette d'assurance auto",cat:'Documents officiels',expiry:'2026-01-01',issued:'2025-01-01',value:0,ref:'AXA-VEH-2025',issuer:'AXA',remind:60,recur:'annual',recurAnchor:'expiry',notes:'Afficher sur pare-brise. Reconduction tacite.',history:[]},
-  {id:12,name:'Déclaration impôt sur le revenu',cat:'Impôts & taxes',expiry:'2025-05-30',issued:'2025-04-01',value:0,ref:'',issuer:'DGFIP',remind:30,recur:'annual',recurAnchor:'expiry',notes:'Déclaration en ligne sur impots.gouv.fr. Date limite varie selon zone.',history:[]},
-  {id:13,name:'Taxe foncière — paiement',cat:'Impôts & taxes',expiry:'2025-10-15',issued:'2025-09-01',value:0,ref:'',issuer:'DGFIP',remind:30,recur:'annual',recurAnchor:'expiry',notes:'Payable en ligne ou par chèque.',history:[]},
-  {id:14,name:'Netflix',cat:'Abonnements',expiry:'2025-07-22',issued:'2022-07-22',value:17.99,ref:'',issuer:'Netflix',remind:7,recur:'monthly',recurAnchor:'expiry',notes:'Renouvellement mensuel automatique.',history:[]},
-  {id:15,name:'Assurance habitation',cat:'Assurances',expiry:'2026-01-01',issued:'2025-01-01',value:0,ref:'POL-HAB-2025',issuer:'Maif',remind:60,recur:'annual',recurAnchor:'expiry',notes:'Reconduction tacite. Résilier 2 mois avant.',history:[]},
-  {id:16,name:'Assurance auto',cat:'Assurances',expiry:'2026-01-01',issued:'2025-01-01',value:0,ref:'POL-AUTO-2025',issuer:'AXA',remind:60,recur:'annual',recurAnchor:'expiry',notes:'Résilier avant le 1er novembre.',history:[]},
-];
-let nextId=17, editingId=null, currentFilter='all', currentCatFilter=null, detailId=null, confirmCb=null;
+let items = [];
+let nextId=1, editingId=null, currentFilter='all', currentCatFilter=null, detailId=null, confirmCb=null;
 
 
 
@@ -2043,7 +2025,7 @@ function setFilter(f,el){ currentFilter=f; currentCatFilter=null; document.query
 function filterStatus(f,el){ closeSidebarOnMobile(); currentCatFilter=null; switchView('items',el); setTimeout(()=>setFilter(f,document.querySelector(`.filter-pill[data-f="${f}"]`)),50); }
 function filterCat(cat,el){ closeSidebarOnMobile(); currentCatFilter=cat; currentFilter='all'; document.querySelector('.filter-pill[data-f="all"]').classList.add('active'); document.querySelectorAll('.filter-pill').forEach(p=>{if(p.dataset.f!=='all') p.classList.remove('active');}); document.getElementById('items-title').textContent=cat; document.getElementById('items-subtitle').textContent='Filtre par catégorie : '+cat; switchView('items',el); renderTable(); }
 
-function switchView(name,el){ closeSidebarOnMobile(); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.getElementById('view-'+name).classList.add('active'); if(el) el.classList.add('active'); if(name==='calendar') renderCalendar(); if(name==='notifs') renderNotifList(); if(name==='items'){ document.getElementById('items-title').textContent='Tous les éléments'; document.getElementById('items-subtitle').textContent='Gérez vos cartes, documents et échéances'; currentCatFilter=null; setFilter('all',document.querySelector('.filter-pill[data-f="all"]')); } }
+window._switchViewClassic = function(name,el){ closeSidebarOnMobile(); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.getElementById('view-'+name).classList.add('active'); if(el) el.classList.add('active'); if(name==='calendar') renderCalendar(); if(name==='notifs') renderNotifList(); if(name==='items'){ document.getElementById('items-title').textContent='Tous les éléments'; document.getElementById('items-subtitle').textContent='Gérez vos cartes, documents et échéances'; currentCatFilter=null; setFilter('all',document.querySelector('.filter-pill[data-f="all"]')); } }
 
 function exportCSV(){ const h='nom,categorie,expiration,emission,valeur,reference,organisme,rappel,notes'; const rows=items.map(i=>[i.name,i.cat,i.expiry,i.issued||'',i.value||0,i.ref||'',i.issuer||'',i.remind||30,i.notes||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')); dl('expirypro.csv',[h,...rows].join('\n'),'text/csv'); showToast('Export CSV téléchargé','ok'); }
 function exportJSON(){ dl('expirypro.json',JSON.stringify(items,null,2),'application/json'); showToast('Export JSON téléchargé','ok'); }
