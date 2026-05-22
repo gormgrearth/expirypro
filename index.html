@@ -660,6 +660,23 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
   <div id="recur-hint" style="display:none;margin-bottom:12px;padding:9px 12px;background:var(--green-bg);border:1px solid #C8E6C9;border-radius:var(--radius);font-size:12px;color:var(--green)">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> <span id="recur-hint-text"></span>
   </div>
+  <!-- Options avancées -->
+  <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--text2);background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:8px 12px;flex:1;min-width:200px;transition:all .12s" id="lbl-auto-renew">
+      <input type="checkbox" id="f-auto-renew" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer;flex-shrink:0">
+      <span>
+        <span style="display:block;font-weight:600">&#10227; Validation automatique</span>
+        <span style="font-size:11px;color:var(--text3);font-weight:400">Renouveler automatiquement à l'échéance</span>
+      </span>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--text2);background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:8px 12px;flex:1;min-width:200px;transition:all .12s" id="lbl-alert-enabled">
+      <input type="checkbox" id="f-alert-enabled" checked style="width:15px;height:15px;accent-color:var(--blue);cursor:pointer;flex-shrink:0">
+      <span>
+        <span style="display:block;font-weight:600">&#128276; Inclure dans les alertes</span>
+        <span style="font-size:11px;color:var(--text3);font-weight:400">Recevoir des notifications pour cet élément</span>
+      </span>
+    </label>
+  </div>
   <div class="form-group" style="margin-bottom:8px">
     <label>Notes / Remarques</label>
     <textarea id="f-notes" placeholder="Conditions, numéro de dossier, instructions de renouvellement…"></textarea>
@@ -728,6 +745,10 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
       <div class="detail-field"><div class="detail-label">Date d'émission</div><div class="detail-val" id="dp-issued">—</div></div>
       <div class="detail-field"><div class="detail-label">Rappel configuré</div><div class="detail-val" id="dp-remind">—</div></div>
       <div class="detail-field"><div class="detail-label">Récurrence</div><div class="detail-val" id="dp-recur">—</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div><div class="detail-label">Validation auto</div><div class="detail-val" id="dp-auto-renew">—</div></div>
+        <div><div class="detail-label">Alertes actives</div><div class="detail-val" id="dp-alert-enabled">—</div></div>
+      </div>
       <div class="detail-field"><div class="detail-label">Notes</div><div class="detail-val" id="dp-notes" style="color:var(--text2);line-height:1.6">—</div></div>
       <div class="divider"></div>
       <div class="detail-label" style="margin-bottom:10px">Historique</div>
@@ -1598,6 +1619,19 @@ function openRenewModal(id){
   window.renewItemId = id;
   const anchor = item.recurAnchor || 'expiry';
   const nextDate = calcNextExpiry(item.expiry, item.recur, anchor);
+  // Auto-renouvellement silencieux
+  if(item.autoRenew){
+    const oldExpiry = item.expiry;
+    item.expiry = nextDate;
+    item.issued = TODAY.toISOString().split('T')[0];
+    item.history = [...(item.history||[]), {text:`Renouvellement automatique : ${fmtShort(oldExpiry)} → ${fmtShort(nextDate)}`,time:'À l\'instant'}];
+    window.renewItemId = null;
+    refresh();
+    if(window.detailId===id) openDetail(id);
+    showToast('&#10227; ' + item.name + ' renouvelé automatiquement jusqu\'au ' + fmtShort(nextDate), 'ok');
+    return;
+  }
+  const nextDate = calcNextExpiry(item.expiry, item.recur, anchor);
   document.getElementById('renew-title').textContent = 'Valider : ' + item.name;
   document.getElementById('renew-sub').textContent = `Cet élément est configuré en récurrence ${RECUR_LABELS[item.recur].toLowerCase()}. Confirmez pour passer à la prochaine période.`;
   document.getElementById('renew-new-date').textContent = fmtDate(nextDate);
@@ -1689,7 +1723,7 @@ function renderTable(){
     const rl=recurLabel(i.recur);
     const needsRenew = rl && days<=0;
     return `<tr data-id="${i.id}" onclick="handleRow(event,'${i.id}')" style="${st.cls==='expired'&&!rl?'opacity:.6':''}cursor:pointer">
-      <td><div style="font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">${rl?`<span class="recur-dot" title="Récurrent : ${escHtml(rl)}"></span>`:''}${escHtml(i.name)}</div><div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center">${i.issuer?`<span style="font-size:11px;color:#0891B2;font-weight:500">${escHtml(i.issuer)}</span>`:''} ${i.value>0?`<span style="font-size:11px;color:var(--blue);font-weight:600">${i.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}</span>`:''} ${escHtml(i.ref||'')?`<span style="font-size:11px;color:var(--text3)">${escHtml(i.ref)}</span>`:''} ${rl?`<span class="recur-badge" style="font-size:10px">&#8635; ${escHtml(rl)}</span>`:''}</div></td>
+      <td><div style="font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">${rl?`<span class="recur-dot" title="Récurrent : ${escHtml(rl)}"></span>`:''}${!i.alertEnabled?`<span title="Alertes désactivées" style="font-size:11px;opacity:.5">🔕</span>`:''}${escHtml(i.name)}</div><div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap;align-items:center">${escHtml(i.ref||'')?`<span style="font-size:11px;color:var(--text3)">${escHtml(i.ref)}</span>`:''} ${rl?`<span class="recur-badge" style="font-size:10px">&#8635; ${escHtml(rl)}</span>`:''}</div></td>
       <td><span class="tag ${CAT_COLORS[i.cat]||'neutral'}">${escHtml(i.cat)}</span></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px">${fmtShort(i.expiry)}</td>
       <td><span class="tag ${st.cls==='expired'?'expired':st.cls}">${st.label}</span></td>
@@ -1770,7 +1804,7 @@ function updateStats(){
 }
 
 function renderDashUrgent(){
-  const urg=[...items].filter(i=>daysUntil(i.expiry)<=30).sort((a,b)=>new Date(a.expiry)-new Date(b.expiry));
+  const urg=[...items].filter(i=>daysUntil(i.expiry)<=30&&i.alertEnabled!==false).sort((a,b)=>new Date(a.expiry)-new Date(b.expiry));
   const panel=document.getElementById('dash-urgent-panel');
   if(!urg.length){panel.style.display='none';return;}
   panel.style.display='';
@@ -2019,7 +2053,7 @@ function renderCalendar(){
 
 function renderNotifList(){
   const l=document.getElementById('notif-list');
-  const urg=[...items].filter(i=>{const d=daysUntil(i.expiry);return d>=0&&d<=90;}).sort((a,b)=>new Date(a.expiry)-new Date(b.expiry));
+  const urg=[...items].filter(i=>{const d=daysUntil(i.expiry);return d>=0&&d<=90&&i.alertEnabled!==false;}).sort((a,b)=>new Date(a.expiry)-new Date(b.expiry));
   if(!urg.length){l.innerHTML='<div style="font-size:13px;color:var(--text3);padding:10px 0">Aucune alerte dans les 90 prochains jours</div>';return;}
   l.innerHTML=urg.map(i=>{
     const days=daysUntil(i.expiry); const st=getStatus(days);
@@ -2050,13 +2084,13 @@ function applyTpl(i){ const t=QTPL[i]; document.querySelectorAll('#quick-chips .
 function updateCatFields(){ const c=document.getElementById('f-cat').value; document.getElementById('lbl-value').textContent=c==='Impôts & taxes'?'Montant estimé (€)':c==='Abonnements'?'Montant mensuel (€)':c==='Assurances'?'Prime annuelle (€)':'Valeur (€)'; document.getElementById('lbl-issuer').textContent=c==='Impôts & taxes'?'Organisme (DGFIP…)':c==='Assurances'?'Assureur':'Émetteur / Organisme'; }
 function updateExpiryPreview(){ const v=document.getElementById('f-expiry').value; const p=document.getElementById('expiry-preview'); if(!v){p.style.display='none';updateRecurHint();return;} const days=daysUntil(v); const st=getStatus(days); const bgs={expired:'#F3F4F6',err:'var(--red-bg)',warn:'var(--amber-bg)',ok:'var(--green-bg)'}; const cols={expired:'#6B7280',err:'var(--red)',warn:'var(--amber)',ok:'var(--green)'}; p.style.display=''; p.style.background=bgs[st.cls]; p.style.color=cols[st.cls]; p.textContent=daysLbl(days)+' · '+fmtDate(v); updateRecurHint(); }
 
-function openAddModal(){ window.editingId=null; buildChips(); document.getElementById('modal-title').textContent='Ajouter un élément'; document.getElementById('modal-subtitle').textContent='Carte, document, abonnement, échéance fiscale…'; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer'; ['f-name','f-ref','f-issuer','f-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-cat').value='Cartes & bons'; document.getElementById('f-expiry').value=''; document.getElementById('f-issued').value=''; document.getElementById('f-value').value='0'; document.getElementById('f-remind').value='30'; document.getElementById('f-recur').value='none'; document.getElementById('f-recur-anchor').value='expiry'; document.getElementById('f-debit').checked=true; document.getElementById('f-debit-label').textContent='💸 Débiteur'; document.getElementById('f-debit-label').style.color='var(--red)'; document.getElementById('fg-recur-anchor').style.display='none'; document.getElementById('recur-hint').style.display='none'; document.getElementById('expiry-preview').style.display='none'; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
+function openAddModal(){ window.editingId=null; buildChips(); document.getElementById('modal-title').textContent='Ajouter un élément'; document.getElementById('modal-subtitle').textContent='Carte, document, abonnement, échéance fiscale…'; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer'; ['f-name','f-ref','f-issuer','f-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-cat').value='Cartes & bons'; document.getElementById('f-expiry').value=''; document.getElementById('f-issued').value=''; document.getElementById('f-value').value='0'; document.getElementById('f-remind').value='30'; document.getElementById('f-recur').value='none'; document.getElementById('f-recur-anchor').value='expiry'; document.getElementById('f-auto-renew').checked=false; document.getElementById('f-alert-enabled').checked=true; document.getElementById('f-debit').checked=true; document.getElementById('f-debit-label').textContent='💸 Débiteur'; document.getElementById('f-debit-label').style.color='var(--red)'; document.getElementById('fg-recur-anchor').style.display='none'; document.getElementById('recur-hint').style.display='none'; document.getElementById('expiry-preview').style.display='none'; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
 
-function openEditModal(id){ const item=items.find(i=>i.id===id); if(!item) return; window.editingId=id; buildChips(); document.getElementById('modal-title').textContent='Modifier'; document.getElementById('modal-subtitle').textContent=item.name; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Mettre à jour'; document.getElementById('f-name').value=item.name; document.getElementById('f-cat').value=item.cat; document.getElementById('f-expiry').value=item.expiry||''; document.getElementById('f-issued').value=item.issued||''; document.getElementById('f-value').value=item.value||0; document.getElementById('f-ref').value=item.ref||''; document.getElementById('f-issuer').value=item.issuer||''; document.getElementById('f-remind').value=item.remind||30; document.getElementById('f-recur').value=item.recur||'none'; document.getElementById('f-recur-anchor').value=item.recurAnchor||'expiry'; document.getElementById('f-notes').value=item.notes||''; document.getElementById('f-debit').checked=item.isDebit!==false; const _dl=document.getElementById('f-debit-label'); if(item.isDebit!==false){_dl.textContent='💸 Débiteur';_dl.style.color='var(--red)';}else{_dl.textContent='💰 Créditeur';_dl.style.color='var(--green)';}; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); updateExpiryPreview(); updateRecurHint(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
+function openEditModal(id){ const item=items.find(i=>i.id===id); if(!item) return; window.editingId=id; buildChips(); document.getElementById('modal-title').textContent='Modifier'; document.getElementById('modal-subtitle').textContent=item.name; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Mettre à jour'; document.getElementById('f-name').value=item.name; document.getElementById('f-cat').value=item.cat; document.getElementById('f-expiry').value=item.expiry||''; document.getElementById('f-issued').value=item.issued||''; document.getElementById('f-value').value=item.value||0; document.getElementById('f-ref').value=item.ref||''; document.getElementById('f-issuer').value=item.issuer||''; document.getElementById('f-remind').value=item.remind||30; document.getElementById('f-recur').value=item.recur||'none'; document.getElementById('f-recur-anchor').value=item.recurAnchor||'expiry'; document.getElementById('f-auto-renew').checked=item.autoRenew===true; document.getElementById('f-alert-enabled').checked=item.alertEnabled!==false; document.getElementById('f-notes').value=item.notes||''; document.getElementById('f-debit').checked=item.isDebit!==false; const _dl=document.getElementById('f-debit-label'); if(item.isDebit!==false){_dl.textContent='💸 Débiteur';_dl.style.color='var(--red)';}else{_dl.textContent='💰 Créditeur';_dl.style.color='var(--green)';}; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); updateExpiryPreview(); updateRecurHint(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
 
 function closeModal(){ document.getElementById('item-modal').classList.remove('open'); }
 
-function saveItem(){ const name=document.getElementById('f-name').value.trim(); const expiry=document.getElementById('f-expiry').value; let ok=true; if(!name){document.getElementById('f-name').classList.add('error');document.getElementById('err-name').style.display='';ok=false;} if(!expiry){document.getElementById('f-expiry').classList.add('error');document.getElementById('err-expiry').style.display='';ok=false;} if(!ok) return; const obj={name,cat:document.getElementById('f-cat').value,expiry,issued:document.getElementById('f-issued').value,value:parseFloat(document.getElementById('f-value').value)||0,ref:document.getElementById('f-ref').value.trim(),issuer:document.getElementById('f-issuer').value.trim(),remind:parseInt(document.getElementById('f-remind').value)||30,recur:document.getElementById('f-recur').value||'none',recurAnchor:document.getElementById('f-recur-anchor').value||'expiry',notes:document.getElementById('f-notes').value.trim()}; if(window.editingId){const idx=items.findIndex(i=>i.id===window.editingId);items[idx]={...items[idx],...obj};items[idx].history=[...items[idx].history||[],{text:'Modifié',time:'À l\'instant'}];showToast(name+' mis à jour','ok');if(window.detailId===window.editingId)openDetail(window.editingId);}else{items.unshift({...obj,id:nextId++,history:[{text:'Créé',time:'À l\'instant'}]});showToast(name+' ajouté','ok');} closeModal(); refresh(); }
+function saveItem(){ const name=document.getElementById('f-name').value.trim(); const expiry=document.getElementById('f-expiry').value; let ok=true; if(!name){document.getElementById('f-name').classList.add('error');document.getElementById('err-name').style.display='';ok=false;} if(!expiry){document.getElementById('f-expiry').classList.add('error');document.getElementById('err-expiry').style.display='';ok=false;} if(!ok) return; const obj={name,cat:document.getElementById('f-cat').value,expiry,issued:document.getElementById('f-issued').value,value:parseFloat(document.getElementById('f-value').value)||0,ref:document.getElementById('f-ref').value.trim(),issuer:document.getElementById('f-issuer').value.trim(),remind:parseInt(document.getElementById('f-remind').value)||30,recur:document.getElementById('f-recur').value||'none',recurAnchor:document.getElementById('f-recur-anchor').value||'expiry',autoRenew:document.getElementById('f-auto-renew').checked,alertEnabled:document.getElementById('f-alert-enabled').checked,notes:document.getElementById('f-notes').value.trim()}; if(window.editingId){const idx=items.findIndex(i=>i.id===window.editingId);items[idx]={...items[idx],...obj};items[idx].history=[...items[idx].history||[],{text:'Modifié',time:'À l\'instant'}];showToast(name+' mis à jour','ok');if(window.detailId===window.editingId)openDetail(window.editingId);}else{items.unshift({...obj,id:nextId++,history:[{text:'Créé',time:'À l\'instant'}]});showToast(name+' ajouté','ok');} closeModal(); refresh(); }
 
 function openDetail(id){ const item=items.find(i=>i.id===id); if(!item) return; window.detailId=id; const days=daysUntil(item.expiry); const st=getStatus(days); document.getElementById('dp-name').textContent=item.name; document.getElementById('dp-cat').textContent=item.cat+(item.issuer?' · '+item.issuer:''); const card=document.getElementById('dp-expiry-card'); card.className=`expiry-card ${st.cls==='expired'?'expired':st.cls}`; document.getElementById('dp-days').textContent=(days<0?Math.abs(days):days)+'j'; document.getElementById('dp-days-label').textContent=daysLbl(days); document.getElementById('dp-expiry-date').textContent='Expiration : '+fmtDate(item.expiry); document.getElementById('dp-value').textContent=item.value>0?item.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'}):'Non renseignée'; document.getElementById('dp-ref').textContent=item.ref||'—'; document.getElementById('dp-issuer').textContent=item.issuer||'—'; document.getElementById('dp-issued').textContent=item.issued?fmtDate(item.issued):'—'; document.getElementById('dp-remind').textContent=item.remind+' jours avant expiration';
   // Recurrence
@@ -2066,6 +2100,9 @@ function openDetail(id){ const item=items.find(i=>i.id===id); if(!item) return; 
     const nextDate = calcNextExpiry(item.expiry, item.recur, item.recurAnchor||'expiry');
     recurEl.innerHTML=`<span class="recur-badge">&#8635; ${escHtml(rl)}</span> <span style="color:var(--text3);font-size:12px">&middot; Prochaine si renouvel&eacute; : ${fmtShort(nextDate)}</span>`;
   } else { recurEl.textContent='Aucune (ponctuel)'; }
+  // AutoRenew & AlertEnabled
+  document.getElementById('dp-auto-renew').innerHTML = item.autoRenew ? '<span style="color:var(--green);font-weight:600">&#10003; Activée</span>' : '<span style="color:var(--text3)">Désactivée</span>';
+  document.getElementById('dp-alert-enabled').innerHTML = item.alertEnabled!==false ? '<span style="color:var(--blue);font-weight:600">&#128276; Oui</span>' : '<span style="color:var(--text3)">&#128277; Non</span>';
   // Validate button
   const validateBtn = document.getElementById('dp-validate-btn');
   if(rl && days<=0){
@@ -2096,7 +2133,7 @@ function exportCSV(){ const h='nom,categorie,expiration,emission,valeur,referenc
 function exportJSON(){ dl('expirypro.json',JSON.stringify(items,null,2),'application/json'); showToast('Export JSON téléchargé','ok'); }
 function dl(n,c,t){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([c],{type:t})); a.download=n; a.click(); }
 function importCSV(input){ const file=input.files[0]; if(!file) return; const r=new FileReader(); r.onload=e=>{ const lines=e.target.result.split('\n').filter(l=>l.trim()); let count=0; lines.slice(1).forEach(line=>{ const c=line.split(',').map(x=>x.replace(/^"|"$/g,'').replace(/""/g,'"').trim()); if(!c[0]||!c[2]) return; items.push({id:nextId++,name:c[0],cat:c[1]||'Autre',expiry:c[2],issued:c[3]||'',value:parseFloat(c[4])||0,ref:c[5]||'',issuer:c[6]||'',remind:parseInt(c[7])||30,notes:c[8]||'',history:[{text:'Importé via CSV',time:'À l\'instant'}]}); count++; }); refresh(); showToast(count+' élément(s) importé(s)','ok'); }; r.readAsText(file); input.value=''; }
-function testNotif(){ const e=document.getElementById('notif-email').value; if(!e){showToast('Email requis','err');return;} showToast('Email de test envoyé à '+e,'ok'); }
+function testNotif(){ const e=document.getElementById('notif-email').value.trim(); if(!e){showToast('Email requis','err');return;} showToast('⚠ Aucun serveur d\'envoi configuré — l\'email ne sera pas reçu. Connectez un service d\'envoi (ex: Firebase Functions + SendGrid) pour activer cette fonctionnalité.','warn'); }
 
 let toastN=0;
 function showToast(msg,type){
