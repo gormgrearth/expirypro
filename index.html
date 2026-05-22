@@ -1631,7 +1631,6 @@ function openRenewModal(id){
     showToast('&#10227; ' + item.name + ' renouvelé automatiquement jusqu\'au ' + fmtShort(nextDate), 'ok');
     return;
   }
-  const nextDate = calcNextExpiry(item.expiry, item.recur, anchor);
   document.getElementById('renew-title').textContent = 'Valider : ' + item.name;
   document.getElementById('renew-sub').textContent = `Cet élément est configuré en récurrence ${RECUR_LABELS[item.recur].toLowerCase()}. Confirmez pour passer à la prochaine période.`;
   document.getElementById('renew-new-date').textContent = fmtDate(nextDate);
