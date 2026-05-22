@@ -864,7 +864,7 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
 import { initializeApp }                            from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut,
          GoogleAuthProvider, signInWithPopup }       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, enableIndexedDbPersistence,
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
          collection, doc,
          onSnapshot, setDoc, addDoc, updateDoc,
          deleteDoc, getDoc, getDocs, query,
@@ -886,13 +886,9 @@ const firebaseConfig = {
 // ── Init ────────────────────────────────────────────────────────────────────
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db   = getFirestore(app);
-
-// Active le cache offline pour éviter "client is offline" au démarrage
-enableIndexedDbPersistence(db).catch(err => {
-  if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-    console.warn('Offline persistence unavailable:', err);
-  }
+// initializeFirestore avec cache persistant (remplace API dépréciée)
+const db   = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 
 // Expose to classic (non-module) scripts
@@ -1174,7 +1170,6 @@ onAuth((user, wsId) => {
 // On remplace les fonctions originales par des versions qui appellent Firebase
 // ET mettent à jour le state local optimistiquement.
 
-const _origSaveItem = window.saveItem;
 window.saveItem = async function() {
   const name   = document.getElementById('f-name').value.trim();
   const expiry = document.getElementById('f-expiry').value;
@@ -1198,8 +1193,8 @@ window.saveItem = async function() {
 
   setSyncIndicator(true);
   try {
-    if (editingId) {
-      await fbUpdate(editingId, data);
+    if (window.editingId) {
+      await fbUpdate(window.editingId, data);
       window.showToast(name + ' mis à jour', 'ok');
     } else {
       await fbAdd(data);
@@ -1218,7 +1213,7 @@ window.deleteItem = async function(id) {
   setSyncIndicator(true);
   try {
     await fbDelete(id);
-    if (detailId===id) window.closeDetail();
+    if (window.detailId===id) window.closeDetail();
     window.showToast((item?.name||'Élément') + ' supprimé', 'info');
   } catch(e) {
     window.showToast('Erreur suppression : ' + e.message, 'err');
@@ -1228,21 +1223,21 @@ window.deleteItem = async function(id) {
 };
 
 window.confirmRenew = async function() {
-  if (!renewItemId) return;
+  if (!window.renewItemId) return;
   const newExpiry = document.getElementById('renew-date-input').value;
   if (!newExpiry) { window.showToast('Date requise', 'err'); return; }
-  const item = items.find(i=>i.id===renewItemId);
+  const item = items.find(i=>i.id===window.renewItemId);
   setSyncIndicator(true);
   try {
-    await fbRenew(renewItemId, newExpiry);
+    await fbRenew(window.renewItemId, newExpiry);
     window.closeRenewModal();
     window.showToast((item?.name||'Élément') + ' renouvelé', 'ok');
-    if (detailId===renewItemId) setTimeout(()=>window.openDetail(renewItemId), 500);
+    if (window.detailId===window.renewItemId) setTimeout(()=>window.openDetail(window.renewItemId), 500);
   } catch(e) {
     window.showToast('Erreur : ' + e.message, 'err');
   } finally {
     setSyncIndicator(false);
-    renewItemId = null;
+    window.renewItemId = null;
   }
 };
 
@@ -1532,7 +1527,11 @@ const CAT_ICONS = {'Cartes & bons':'ti-credit-card','Documents officiels':'ti-fi
 const CAT_COLORS = {'Cartes & bons':'purple','Documents officiels':'info','Impôts & taxes':'warn','Abonnements':'teal','Assurances':'ok','Autre':'neutral'};
 
 let items = [];
-let nextId=1, editingId=null, currentFilter='all', currentCatFilter=null, detailId=null, confirmCb=null;
+let nextId=1, currentFilter='all', currentCatFilter=null, confirmCb=null;
+// Expose mutable state on window so the module script can read/write it
+window.editingId = null;
+window.detailId  = null;
+window.renewItemId = null;
 
 
 
@@ -1562,12 +1561,12 @@ function toDateInputVal(dateStr){
   return dateStr; // already YYYY-MM-DD
 }
 
-let renewItemId = null;
+// window.renewItemId now on window
 
 function openRenewModal(id){
   const item = items.find(i=>i.id===id);
   if(!item || !item.recur || item.recur==='none') return;
-  renewItemId = id;
+  window.renewItemId = id;
   const anchor = item.recurAnchor || 'expiry';
   const nextDate = calcNextExpiry(item.expiry, item.recur, anchor);
   document.getElementById('renew-title').textContent = 'Valider : ' + item.name;
@@ -1589,8 +1588,8 @@ function updateRenewPreviewFromInput(){
 }
 
 function confirmRenew(){
-  if(!renewItemId) return;
-  const item = items.find(i=>i.id===renewItemId);
+  if(!window.renewItemId) return;
+  const item = items.find(i=>i.id===window.renewItemId);
   if(!item) return;
   const oldExpiry = item.expiry;
   const newExpiry = document.getElementById('renew-date-input').value;
@@ -1603,9 +1602,9 @@ function confirmRenew(){
   }];
   closeRenewModal();
   refresh();
-  if(detailId===renewItemId) openDetail(renewItemId);
+  if(window.detailId===window.renewItemId) openDetail(window.renewItemId);
   showToast(item.name + ' renouvelé jusqu\'au ' + fmtShort(newExpiry), 'ok');
-  renewItemId = null;
+  window.renewItemId = null;
 }
 
 function closeRenewModal(){ document.getElementById('renew-modal').classList.remove('open'); }
@@ -1985,15 +1984,15 @@ function applyTpl(i){ const t=QTPL[i]; document.querySelectorAll('#quick-chips .
 function updateCatFields(){ const c=document.getElementById('f-cat').value; document.getElementById('lbl-value').textContent=c==='Impôts & taxes'?'Montant estimé (€)':c==='Abonnements'?'Montant mensuel (€)':c==='Assurances'?'Prime annuelle (€)':'Valeur (€)'; document.getElementById('lbl-issuer').textContent=c==='Impôts & taxes'?'Organisme (DGFIP…)':c==='Assurances'?'Assureur':'Émetteur / Organisme'; }
 function updateExpiryPreview(){ const v=document.getElementById('f-expiry').value; const p=document.getElementById('expiry-preview'); if(!v){p.style.display='none';updateRecurHint();return;} const days=daysUntil(v); const st=getStatus(days); const bgs={expired:'#F3F4F6',err:'var(--red-bg)',warn:'var(--amber-bg)',ok:'var(--green-bg)'}; const cols={expired:'#6B7280',err:'var(--red)',warn:'var(--amber)',ok:'var(--green)'}; p.style.display=''; p.style.background=bgs[st.cls]; p.style.color=cols[st.cls]; p.textContent=daysLbl(days)+' · '+fmtDate(v); updateRecurHint(); }
 
-function openAddModal(){ editingId=null; buildChips(); document.getElementById('modal-title').textContent='Ajouter un élément'; document.getElementById('modal-subtitle').textContent='Carte, document, abonnement, échéance fiscale…'; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer'; ['f-name','f-ref','f-issuer','f-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-cat').value='Cartes & bons'; document.getElementById('f-expiry').value=''; document.getElementById('f-issued').value=''; document.getElementById('f-value').value='0'; document.getElementById('f-remind').value='30'; document.getElementById('f-recur').value='none'; document.getElementById('f-recur-anchor').value='expiry'; document.getElementById('fg-recur-anchor').style.display='none'; document.getElementById('recur-hint').style.display='none'; document.getElementById('expiry-preview').style.display='none'; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
+function openAddModal(){ window.editingId=null; buildChips(); document.getElementById('modal-title').textContent='Ajouter un élément'; document.getElementById('modal-subtitle').textContent='Carte, document, abonnement, échéance fiscale…'; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Enregistrer'; ['f-name','f-ref','f-issuer','f-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('f-cat').value='Cartes & bons'; document.getElementById('f-expiry').value=''; document.getElementById('f-issued').value=''; document.getElementById('f-value').value='0'; document.getElementById('f-remind').value='30'; document.getElementById('f-recur').value='none'; document.getElementById('f-recur-anchor').value='expiry'; document.getElementById('fg-recur-anchor').style.display='none'; document.getElementById('recur-hint').style.display='none'; document.getElementById('expiry-preview').style.display='none'; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
 
-function openEditModal(id){ const item=items.find(i=>i.id===id); if(!item) return; editingId=id; buildChips(); document.getElementById('modal-title').textContent='Modifier'; document.getElementById('modal-subtitle').textContent=item.name; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Mettre à jour'; document.getElementById('f-name').value=item.name; document.getElementById('f-cat').value=item.cat; document.getElementById('f-expiry').value=item.expiry||''; document.getElementById('f-issued').value=item.issued||''; document.getElementById('f-value').value=item.value||0; document.getElementById('f-ref').value=item.ref||''; document.getElementById('f-issuer').value=item.issuer||''; document.getElementById('f-remind').value=item.remind||30; document.getElementById('f-recur').value=item.recur||'none'; document.getElementById('f-recur-anchor').value=item.recurAnchor||'expiry'; document.getElementById('f-notes').value=item.notes||''; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); updateExpiryPreview(); updateRecurHint(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
+function openEditModal(id){ const item=items.find(i=>i.id===id); if(!item) return; window.editingId=id; buildChips(); document.getElementById('modal-title').textContent='Modifier'; document.getElementById('modal-subtitle').textContent=item.name; document.getElementById('modal-save-btn').innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Mettre à jour'; document.getElementById('f-name').value=item.name; document.getElementById('f-cat').value=item.cat; document.getElementById('f-expiry').value=item.expiry||''; document.getElementById('f-issued').value=item.issued||''; document.getElementById('f-value').value=item.value||0; document.getElementById('f-ref').value=item.ref||''; document.getElementById('f-issuer').value=item.issuer||''; document.getElementById('f-remind').value=item.remind||30; document.getElementById('f-recur').value=item.recur||'none'; document.getElementById('f-recur-anchor').value=item.recurAnchor||'expiry'; document.getElementById('f-notes').value=item.notes||''; ['f-name','f-expiry'].forEach(id=>{document.getElementById(id).classList.remove('error');}); document.getElementById('err-name').style.display='none'; document.getElementById('err-expiry').style.display='none'; updateCatFields(); updateExpiryPreview(); updateRecurHint(); document.getElementById('item-modal').classList.add('open'); setTimeout(()=>document.getElementById('f-name').focus(),220); }
 
 function closeModal(){ document.getElementById('item-modal').classList.remove('open'); }
 
-function saveItem(){ const name=document.getElementById('f-name').value.trim(); const expiry=document.getElementById('f-expiry').value; let ok=true; if(!name){document.getElementById('f-name').classList.add('error');document.getElementById('err-name').style.display='';ok=false;} if(!expiry){document.getElementById('f-expiry').classList.add('error');document.getElementById('err-expiry').style.display='';ok=false;} if(!ok) return; const obj={name,cat:document.getElementById('f-cat').value,expiry,issued:document.getElementById('f-issued').value,value:parseFloat(document.getElementById('f-value').value)||0,ref:document.getElementById('f-ref').value.trim(),issuer:document.getElementById('f-issuer').value.trim(),remind:parseInt(document.getElementById('f-remind').value)||30,recur:document.getElementById('f-recur').value||'none',recurAnchor:document.getElementById('f-recur-anchor').value||'expiry',notes:document.getElementById('f-notes').value.trim()}; if(editingId){const idx=items.findIndex(i=>i.id===editingId);items[idx]={...items[idx],...obj};items[idx].history=[...items[idx].history||[],{text:'Modifié',time:'À l\'instant'}];showToast(name+' mis à jour','ok');if(detailId===editingId)openDetail(editingId);}else{items.unshift({...obj,id:nextId++,history:[{text:'Créé',time:'À l\'instant'}]});showToast(name+' ajouté','ok');} closeModal(); refresh(); }
+function saveItem(){ const name=document.getElementById('f-name').value.trim(); const expiry=document.getElementById('f-expiry').value; let ok=true; if(!name){document.getElementById('f-name').classList.add('error');document.getElementById('err-name').style.display='';ok=false;} if(!expiry){document.getElementById('f-expiry').classList.add('error');document.getElementById('err-expiry').style.display='';ok=false;} if(!ok) return; const obj={name,cat:document.getElementById('f-cat').value,expiry,issued:document.getElementById('f-issued').value,value:parseFloat(document.getElementById('f-value').value)||0,ref:document.getElementById('f-ref').value.trim(),issuer:document.getElementById('f-issuer').value.trim(),remind:parseInt(document.getElementById('f-remind').value)||30,recur:document.getElementById('f-recur').value||'none',recurAnchor:document.getElementById('f-recur-anchor').value||'expiry',notes:document.getElementById('f-notes').value.trim()}; if(window.editingId){const idx=items.findIndex(i=>i.id===window.editingId);items[idx]={...items[idx],...obj};items[idx].history=[...items[idx].history||[],{text:'Modifié',time:'À l\'instant'}];showToast(name+' mis à jour','ok');if(window.detailId===window.editingId)openDetail(window.editingId);}else{items.unshift({...obj,id:nextId++,history:[{text:'Créé',time:'À l\'instant'}]});showToast(name+' ajouté','ok');} closeModal(); refresh(); }
 
-function openDetail(id){ const item=items.find(i=>i.id===id); if(!item) return; detailId=id; const days=daysUntil(item.expiry); const st=getStatus(days); document.getElementById('dp-name').textContent=item.name; document.getElementById('dp-cat').textContent=item.cat+(item.issuer?' · '+item.issuer:''); const card=document.getElementById('dp-expiry-card'); card.className=`expiry-card ${st.cls==='expired'?'expired':st.cls}`; document.getElementById('dp-days').textContent=(days<0?Math.abs(days):days)+'j'; document.getElementById('dp-days-label').textContent=daysLbl(days); document.getElementById('dp-expiry-date').textContent='Expiration : '+fmtDate(item.expiry); document.getElementById('dp-value').textContent=item.value>0?item.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'}):'Non renseignée'; document.getElementById('dp-ref').textContent=item.ref||'—'; document.getElementById('dp-issuer').textContent=item.issuer||'—'; document.getElementById('dp-issued').textContent=item.issued?fmtDate(item.issued):'—'; document.getElementById('dp-remind').textContent=item.remind+' jours avant expiration';
+function openDetail(id){ const item=items.find(i=>i.id===id); if(!item) return; window.detailId=id; const days=daysUntil(item.expiry); const st=getStatus(days); document.getElementById('dp-name').textContent=item.name; document.getElementById('dp-cat').textContent=item.cat+(item.issuer?' · '+item.issuer:''); const card=document.getElementById('dp-expiry-card'); card.className=`expiry-card ${st.cls==='expired'?'expired':st.cls}`; document.getElementById('dp-days').textContent=(days<0?Math.abs(days):days)+'j'; document.getElementById('dp-days-label').textContent=daysLbl(days); document.getElementById('dp-expiry-date').textContent='Expiration : '+fmtDate(item.expiry); document.getElementById('dp-value').textContent=item.value>0?item.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'}):'Non renseignée'; document.getElementById('dp-ref').textContent=item.ref||'—'; document.getElementById('dp-issuer').textContent=item.issuer||'—'; document.getElementById('dp-issued').textContent=item.issued?fmtDate(item.issued):'—'; document.getElementById('dp-remind').textContent=item.remind+' jours avant expiration';
   // Recurrence
   const rl = recurLabel(item.recur);
   const recurEl = document.getElementById('dp-recur');
@@ -2013,12 +2012,12 @@ function openDetail(id){ const item=items.find(i=>i.id===id); if(!item) return; 
     validateBtn.onclick=null;
   } else { validateBtn.style.display='none'; }
   document.getElementById('dp-notes').textContent=item.notes||'Aucune note'; document.getElementById('dp-history').innerHTML=(item.history||[]).slice().reverse().map(h=>`<div style="margin-bottom:6px">• ${escHtml(h.text)} <span style="color:var(--text3)">${escHtml(h.time)}</span></div>`).join('')||'<span style="color:var(--text3)">Aucun historique</span>'; document.getElementById('dp-edit-btn').onclick=()=>{closeDetail();openEditModal(id);}; document.getElementById('dp-del-btn').onclick=()=>confirmDelete(id); document.getElementById('dp-renew-btn').onclick=()=>{closeDetail();openEditModal(id);setTimeout(()=>{document.getElementById('f-expiry').value='';document.getElementById('f-expiry').focus();},300);}; document.getElementById('detail-overlay').classList.add('open'); }
-function closeDetail(){ document.getElementById('detail-overlay').classList.remove('open'); detailId=null; }
+function closeDetail(){ document.getElementById('detail-overlay').classList.remove('open'); window.detailId=null; }
 
 function openConfirm(title,msg,cb){ document.getElementById('confirm-title').textContent=title; document.getElementById('confirm-msg').textContent=msg; confirmCb=cb; document.getElementById('confirm-ok').onclick=()=>{closeConfirm();if(confirmCb)confirmCb();}; document.getElementById('confirm-modal').classList.add('open'); }
 function closeConfirm(){ document.getElementById('confirm-modal').classList.remove('open'); }
 function confirmDelete(id){ const item=items.find(i=>i.id===id); if(!item) return; const doC=document.getElementById('pref-confirm')?.checked!==false; if(doC) openConfirm(`Supprimer "${item.name}" ?`,'Cette action est irréversible.',()=>deleteItem(id)); else deleteItem(id); }
-function deleteItem(id){ const item=items.find(i=>i.id===id); items=items.filter(i=>i.id!==id); if(detailId===id)closeDetail(); refresh(); showToast((item?.name||'Élément')+' supprimé','info'); }
+function deleteItem(id){ const item=items.find(i=>i.id===id); items=items.filter(i=>i.id!==id); if(window.detailId===id)closeDetail(); refresh(); showToast((item?.name||'Élément')+' supprimé','info'); }
 function confirmClearAll(){ openConfirm('Effacer toutes les données ?','Tous vos éléments seront supprimés définitivement.',()=>{items=[];refresh();showToast('Données effacées','info');}); }
 
 function setFilter(f,el){ currentFilter=f; currentCatFilter=null; document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active')); if(el) el.classList.add('active'); renderTable(); }
