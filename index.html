@@ -465,21 +465,58 @@ code{font-family:'JetBrains Mono',monospace;background:var(--bg3);padding:2px 6p
 
 <!-- NOTIFICATIONS -->
 <div class="view" id="view-notifs">
-  <div class="view-header"><div><div class="view-title">Notifications &amp; Alertes</div><div class="view-subtitle">Configuration des rappels automatiques</div></div></div>
-  <div class="panel">
-    <div class="panel-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Rappels actifs</div>
-    <div class="toggle-row"><div><div class="toggle-label">Alerte 90 jours avant</div><div class="toggle-desc">Rappel préventif pour préparer le renouvellement</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
-    <div class="toggle-row"><div><div class="toggle-label">Alerte 30 jours avant</div><div class="toggle-desc">Rappel urgent — action requise bientôt</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
-    <div class="toggle-row"><div><div class="toggle-label">Alerte 7 jours avant</div><div class="toggle-desc">Dernier rappel avant expiration</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
-    <div class="toggle-row"><div><div class="toggle-label">Alerte le jour J</div><div class="toggle-desc">Notification le jour même de l'expiration</div></div><label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></div>
-    <div class="toggle-row"><div><div class="toggle-label">Récapitulatif mensuel</div><div class="toggle-desc">Email le 1er de chaque mois avec les expirations du mois</div></div><label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label></div>
-    <div style="margin-top:14px;display:flex;gap:8px;align-items:flex-end">
-      <div class="form-group" style="flex:1"><label>Email de notification</label><input type="email" id="notif-email" value="alice@exemple.fr"></div>
-      <button class="btn primary" onclick="testNotif()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Tester</button>
+  <div class="view-header"><div><div class="view-title">Notifications &amp; Alertes</div><div class="view-subtitle">Notifications navigateur — 100% gratuit, aucun serveur</div></div></div>
+
+  <!-- Statut permission -->
+  <div class="panel" id="notif-permission-panel">
+    <div class="panel-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Autorisation navigateur
+    </div>
+    <div id="notif-status-block" style="display:flex;align-items:center;gap:14px;padding:14px;border-radius:var(--r);margin-bottom:14px">
+      <div id="notif-status-icon" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px"></div>
+      <div style="flex:1">
+        <div id="notif-status-title" style="font-size:13px;font-weight:600;margin-bottom:3px"></div>
+        <div id="notif-status-desc" style="font-size:12px;color:var(--text3)"></div>
+      </div>
+      <button class="btn primary" id="notif-request-btn" onclick="requestNotifPermission()" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Autoriser
+      </button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" onclick="testBrowserNotif()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Tester une notification
+      </button>
+      <button class="btn" onclick="triggerDueNotifs()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg>
+        Vérifier les échéances maintenant
+      </button>
     </div>
   </div>
+
+  <!-- Seuils d'alerte -->
   <div class="panel">
-    <div class="panel-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>  <line x1="12" y1="7" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="15"/></svg> Alertes actives</div>
+    <div class="panel-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Seuils de rappel
+    </div>
+    <div class="toggle-row"><div><div class="toggle-label">90 jours avant</div><div class="toggle-desc">Rappel préventif pour préparer le renouvellement</div></div><label class="toggle"><input type="checkbox" id="pref-notif-90" checked><span class="toggle-slider"></span></label></div>
+    <div class="toggle-row"><div><div class="toggle-label">30 jours avant</div><div class="toggle-desc">Rappel urgent — action requise bientôt</div></div><label class="toggle"><input type="checkbox" id="pref-notif-30" checked><span class="toggle-slider"></span></label></div>
+    <div class="toggle-row"><div><div class="toggle-label">7 jours avant</div><div class="toggle-desc">Dernier rappel avant expiration</div></div><label class="toggle"><input type="checkbox" id="pref-notif-7" checked><span class="toggle-slider"></span></label></div>
+    <div class="toggle-row"><div><div class="toggle-label">Le jour J</div><div class="toggle-desc">Notification le jour même de l'expiration</div></div><label class="toggle"><input type="checkbox" id="pref-notif-0" checked><span class="toggle-slider"></span></label></div>
+    <div style="margin-top:12px;padding:10px 12px;background:var(--blue-bg);border:1px solid var(--blue-lt);border-radius:var(--r);font-size:12px;color:var(--blue)">
+      💡 Les notifications s'affichent à l'ouverture de l'application. Pour des rappels même navigateur fermé, ajoutez l'app à votre écran d'accueil (PWA).
+    </div>
+  </div>
+
+  <!-- Alertes actives -->
+  <div class="panel">
+    <div class="panel-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><line x1="12" y1="7" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="15"/></svg>
+      Alertes actives <span style="font-size:11px;color:var(--text3);font-weight:400">(éléments avec alertes activées, dans les 90 prochains jours)</span>
+    </div>
     <div id="notif-list"></div>
   </div>
 </div>
@@ -1204,6 +1241,8 @@ onAuth((user, wsId) => {
       remind: i.remind || 30,
       recur: i.recur || 'none',
       recurAnchor: i.recurAnchor || 'expiry',
+      autoRenew: i.autoRenew === true,
+      alertEnabled: i.alertEnabled !== false,
       notes: i.notes || '',
       isDebit: i.isDebit !== false,
       date: i.updatedAt ? new Date(i.updatedAt.toDate()).toLocaleDateString('fr-FR') : '—',
@@ -2126,13 +2165,126 @@ function setFilter(f,el){ window.currentFilter=f; window.currentCatFilter=null; 
 function filterStatus(f,el){ closeSidebarOnMobile(); window.currentCatFilter=null; switchView('items',el); setTimeout(()=>setFilter(f,document.querySelector(`.filter-pill[data-f="${f}"]`)),50); }
 function filterCat(cat,el){ closeSidebarOnMobile(); window.currentCatFilter=cat; window.currentFilter='all'; document.querySelector('.filter-pill[data-f="all"]').classList.add('active'); document.querySelectorAll('.filter-pill').forEach(p=>{if(p.dataset.f!=='all') p.classList.remove('active');}); document.getElementById('items-title').textContent=cat; document.getElementById('items-subtitle').textContent='Filtre par catégorie : '+cat; window._keepCatFilter=true; switchView('items',el); renderTable(); }
 
-window._switchViewClassic = function(name,el){ closeSidebarOnMobile(); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.getElementById('view-'+name).classList.add('active'); if(el) el.classList.add('active'); if(name==='calendar') renderCalendar(); if(name==='notifs') renderNotifList(); if(name==='items' && !window._keepCatFilter){ document.getElementById('items-title').textContent='Tous les éléments'; document.getElementById('items-subtitle').textContent='Gérez vos cartes, documents et échéances'; window.currentCatFilter=null; setFilter('all',document.querySelector('.filter-pill[data-f="all"]')); } window._keepCatFilter=false; }
+window._switchViewClassic = function(name,el){ closeSidebarOnMobile(); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.getElementById('view-'+name).classList.add('active'); if(el) el.classList.add('active'); if(name==='calendar') renderCalendar(); if(name==='notifs'){ renderNotifList(); updateNotifStatusUI(); } if(name==='items' && !window._keepCatFilter){ document.getElementById('items-title').textContent='Tous les éléments'; document.getElementById('items-subtitle').textContent='Gérez vos cartes, documents et échéances'; window.currentCatFilter=null; setFilter('all',document.querySelector('.filter-pill[data-f="all"]')); } window._keepCatFilter=false; }
 
 function exportCSV(){ const h='nom,categorie,expiration,emission,valeur,reference,organisme,rappel,notes'; const rows=items.map(i=>[i.name,i.cat,i.expiry,i.issued||'',i.value||0,i.ref||'',i.issuer||'',i.remind||30,i.notes||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')); dl('expirypro.csv',[h,...rows].join('\n'),'text/csv'); showToast('Export CSV téléchargé','ok'); }
 function exportJSON(){ dl('expirypro.json',JSON.stringify(items,null,2),'application/json'); showToast('Export JSON téléchargé','ok'); }
 function dl(n,c,t){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([c],{type:t})); a.download=n; a.click(); }
 function importCSV(input){ const file=input.files[0]; if(!file) return; const r=new FileReader(); r.onload=e=>{ const lines=e.target.result.split('\n').filter(l=>l.trim()); let count=0; lines.slice(1).forEach(line=>{ const c=line.split(',').map(x=>x.replace(/^"|"$/g,'').replace(/""/g,'"').trim()); if(!c[0]||!c[2]) return; items.push({id:nextId++,name:c[0],cat:c[1]||'Autre',expiry:c[2],issued:c[3]||'',value:parseFloat(c[4])||0,ref:c[5]||'',issuer:c[6]||'',remind:parseInt(c[7])||30,notes:c[8]||'',history:[{text:'Importé via CSV',time:'À l\'instant'}]}); count++; }); refresh(); showToast(count+' élément(s) importé(s)','ok'); }; r.readAsText(file); input.value=''; }
-function testNotif(){ const e=document.getElementById('notif-email').value.trim(); if(!e){showToast('Email requis','err');return;} showToast('⚠ Aucun serveur d\'envoi configuré — l\'email ne sera pas reçu. Connectez un service d\'envoi (ex: Firebase Functions + SendGrid) pour activer cette fonctionnalité.','warn'); }
+// ── BROWSER NOTIFICATIONS ─────────────────────────────────────────────────
+
+function updateNotifStatusUI(){
+  const status = Notification.permission;
+  const block  = document.getElementById('notif-status-block');
+  const icon   = document.getElementById('notif-status-icon');
+  const title  = document.getElementById('notif-status-title');
+  const desc   = document.getElementById('notif-status-desc');
+  const btn    = document.getElementById('notif-request-btn');
+  if(!block) return;
+  if(status === 'granted'){
+    block.style.background = 'var(--green-bg)';
+    block.style.border = '1px solid var(--green-lt)';
+    icon.textContent = '✅';
+    title.textContent = 'Notifications autorisées';
+    desc.textContent  = 'Vous recevrez des alertes navigateur pour vos échéances.';
+    if(btn) btn.style.display = 'none';
+  } else if(status === 'denied'){
+    block.style.background = 'var(--red-bg)';
+    block.style.border = '1px solid var(--red-lt)';
+    icon.textContent = '🚫';
+    title.textContent = 'Notifications bloquées';
+    desc.textContent  = 'Réactivez-les dans les paramètres du navigateur (icône 🔒 dans la barre d\'adresse).';
+    if(btn) btn.style.display = 'none';
+  } else {
+    block.style.background = 'var(--amber-bg)';
+    block.style.border = '1px solid var(--amber-lt)';
+    icon.textContent = '🔔';
+    title.textContent = 'Autorisation requise';
+    desc.textContent  = 'Cliquez sur "Autoriser" pour activer les notifications navigateur.';
+    if(btn) btn.style.display = '';
+  }
+}
+
+function requestNotifPermission(){
+  if(!('Notification' in window)){ showToast('Votre navigateur ne supporte pas les notifications','err'); return; }
+  Notification.requestPermission().then(p => {
+    updateNotifStatusUI();
+    if(p === 'granted'){ showToast('Notifications activées !','ok'); triggerDueNotifs(); }
+    else { showToast('Permission refusée','warn'); }
+  });
+}
+
+function sendBrowserNotif(title, body, tag){
+  if(Notification.permission !== 'granted') return;
+  const n = new Notification(title, {
+    body,
+    tag: tag || 'expirypro',
+    icon: 'favicon-192.png',
+    badge: 'favicon-32.png',
+    requireInteraction: false,
+  });
+  n.onclick = () => { window.focus(); n.close(); switchView('items'); };
+}
+
+function testBrowserNotif(){
+  if(!('Notification' in window)){ showToast('Notifications non supportées par ce navigateur','err'); return; }
+  if(Notification.permission !== 'granted'){
+    showToast('Autorisez d\'abord les notifications','warn');
+    requestNotifPermission();
+    return;
+  }
+  sendBrowserNotif(
+    '🔔 ExpiryPro — Test de notification',
+    'Vos alertes d\'expiration sont bien configurées !',
+    'test'
+  );
+  showToast('Notification envoyée — vérifiez votre bureau','ok');
+}
+
+function triggerDueNotifs(){
+  if(Notification.permission !== 'granted') return;
+  const thresholds = [
+    { id:'pref-notif-90', days:90 },
+    { id:'pref-notif-30', days:30 },
+    { id:'pref-notif-7',  days:7  },
+    { id:'pref-notif-0',  days:0  },
+  ];
+  // Determine which thresholds are enabled
+  const active = thresholds.filter(t => {
+    const el = document.getElementById(t.id);
+    return el ? el.checked : true;
+  });
+  let sent = 0;
+  items.forEach(i => {
+    if(i.alertEnabled === false) return;
+    const d = daysUntil(i.expiry);
+    active.forEach(t => {
+      if(d === t.days){
+        const label = d === 0 ? 'expire aujourd\'hui !' : `expire dans ${d} jour${d>1?'s':''}`;
+        sendBrowserNotif(
+          `⚠ ${i.name}`,
+          `${i.cat}${i.issuer ? ' · '+i.issuer : ''} — ${label}`,
+          'expiry-'+i.id+'-'+t.days
+        );
+        sent++;
+      }
+    });
+  });
+  if(sent === 0) showToast('Aucune échéance à notifier aujourd\'hui','info');
+  else showToast(`${sent} notification${sent>1?'s':''} envoyée${sent>1?'s':''}`, 'ok');
+}
+
+// Vérification automatique à l'ouverture
+function initNotifications(){
+  if(!('Notification' in window)) return;
+  updateNotifStatusUI();
+  if(Notification.permission === 'granted'){
+    // Légère temporisation pour ne pas bloquer le chargement
+    setTimeout(triggerDueNotifs, 1500);
+  }
+}
+
+function testNotif(){ testBrowserNotif(); }
 
 let toastN=0;
 function showToast(msg,type){
@@ -2179,6 +2331,7 @@ function closeSidebarOnMobile(){
 document.getElementById('dash-date').textContent=TODAY.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 refresh();
 renderNotifList();
+initNotifications();
 
 // ── Login UI functions ────────────────────────────────────────────────────
 window.showLoginUI = function() {
