@@ -1673,7 +1673,7 @@ function renderTable(){
     const val=i.value>0?i.value.toLocaleString('fr-FR',{style:'currency',currency:'EUR'}):'—';
     const rl=recurLabel(i.recur);
     const needsRenew = rl && days<=0;
-    return `<tr data-id="${i.id}" onclick="handleRow(event,${i.id})" style="${st.cls==='expired'&&!rl?'opacity:.6':''}cursor:pointer">
+    return `<tr data-id="${i.id}" onclick="handleRow(event,'${i.id}')" style="${st.cls==='expired'&&!rl?'opacity:.6':''}cursor:pointer">
       <td><div style="font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">${rl?`<span class="recur-dot" title="Récurrent : ${escHtml(rl)}"></span>`:''}${escHtml(i.name)}</div><div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap">${escHtml(i.ref||'')?`<span style="font-size:11px;color:var(--text3)">${escHtml(i.ref)}</span>`:''}${rl?`<span class="recur-badge" style="font-size:10px">&#8635; ${escHtml(rl)}</span>`:''}</div></td>
       <td><span class="tag ${CAT_COLORS[i.cat]||'neutral'}">${escHtml(i.cat)}</span></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px">${fmtShort(i.expiry)}</td>
@@ -1682,9 +1682,9 @@ function renderTable(){
       <td style="font-size:13px;color:var(--blue);font-weight:500">${val}</td>
       <td style="font-size:12px;color:var(--text3)">${escHtml(i.issuer||'—')}</td>
       <td onclick="event.stopPropagation()"><div class="row-actions">
-        ${needsRenew?`<button class="icon-btn validate" onclick="openRenewModal(${i.id})" title="Valider &amp; renouveler" style="background:var(--green-bg);color:var(--green);border-color:var(--green-lt)"><b>&#10003;</b></button>`:''}
-        <button class="icon-btn edit-btn" onclick="openEditModal(${i.id})" title="Modifier"><b>&#9998;</b></button>
-        <button class="icon-btn del" onclick="confirmDelete(${i.id})" title="Supprimer"><b>&#215;</b></button>
+        ${needsRenew?`<button class="icon-btn validate" onclick="openRenewModal('${i.id}')" title="Valider &amp; renouveler" style="background:var(--green-bg);color:var(--green);border-color:var(--green-lt)"><b>&#10003;</b></button>`:''}
+        <button class="icon-btn edit-btn" onclick="openEditModal('${i.id}')" title="Modifier"><b>&#9998;</b></button>
+        <button class="icon-btn del" onclick="confirmDelete('${i.id}')" title="Supprimer"><b>&#215;</b></button>
       </div></td>
     </tr>`;
   }).join('');
@@ -1726,11 +1726,11 @@ function renderDashUrgent(){
     const days=daysUntil(i.expiry); const st=getStatus(days);
     const col=st.cls==='expired'?'#6B7280':st.cls==='err'?'var(--red)':'var(--amber)';
     const bg=st.cls==='expired'?'#F3F4F6':st.cls==='err'?'var(--red-bg)':'var(--amber-bg)';
-    return `<div class="deadline-item" onclick="openDetail(${i.id})">
+    return `<div class="deadline-item" onclick="openDetail('${i.id}')">
       <div class="deadline-icon" style="background:${bg};color:${col}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
       <div style="flex:1"><div style="font-size:13px;font-weight:500">${escHtml(i.name)}</div><div style="font-size:11px;color:var(--text3)">${escHtml(i.cat)} · ${fmtDate(i.expiry)}</div></div>
       <div style="font-size:12px;font-weight:600;color:${col}">${daysLbl(days)}</div>
-      <button class="icon-btn edit-btn" onclickstopPropagation();openEditModal(${i.id})" title="Modifier"><b>&#9998;</b></button>
+      <button class="icon-btn edit-btn" onclick="event.stopPropagation();openEditModal('${i.id}')" title="Modifier"><b>&#9998;</b></button>
     </div>`;
   }).join('');
 }
@@ -1949,7 +1949,7 @@ function renderCalendar(){
     <div class="cal-grid">${its.map(i=>{
       const days=daysUntil(i.expiry); const st=getStatus(days);
       const ac=st.cls==='expired'?'#9CA3AF':st.cls==='err'?'var(--red)':st.cls==='warn'?'var(--amber)':'var(--green)';
-      return `<div class="cal-card" onclick="openDetail(${i.id})" style="opacity:${st.cls==='expired'?.6:1}">
+      return `<div class="cal-card" onclick="openDetail('${i.id}')" style="opacity:${st.cls==='expired'?.6:1}">
         <div class="cal-card-accent" style="background:${ac}"></div>
         <div style="padding-left:10px">
           <div style="font-size:13px;font-weight:500;margin-bottom:3px">${escHtml(i.name)}</div>
